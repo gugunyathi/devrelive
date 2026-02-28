@@ -1,0 +1,9 @@
+{
+  "name": "DevReLive",
+  "description": "A live call center for developers to get direct assistance with their builds, code, and apps on Base.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "display-capture"
+  ]
+}
