@@ -48,7 +48,6 @@ export default function Home() {
         align="center"
         variant="solid"
         colorScheme="dark"
-        size="medium"
         onClick={signIn}
       />
     </div>
@@ -184,7 +183,6 @@ export default function Home() {
                 align="center"
                 variant="solid"
                 colorScheme="dark"
-                size="small"
                 onClick={signIn}
               />
             )}
