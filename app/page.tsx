@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { sdk } from '@farcaster/miniapp-sdk';
 import { CallPad, Channel } from '@/components/CallPad';
 import { ActiveCall } from '@/components/ActiveCall';
 import { Integrations } from '@/components/Integrations';
@@ -9,30 +10,56 @@ import { CalendarView } from '@/components/CalendarView';
 import { RepairView } from '@/components/RepairView';
 import { ProfileView } from '@/components/ProfileView';
 import { AdminView } from '@/components/AdminView';
-import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogIn, LogOut } from 'lucide-react';
+import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogOut, LockKeyhole } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '@/contexts/AuthContext';
+import { SignInWithBaseButton } from '@base-org/account-ui/react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'discord' | 'call' | 'calendar' | 'integrations' | 'repair' | 'profile' | 'admin'>('discord');
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const { address, signIn, signOut } = useAuth();
 
+  useEffect(() => {
+    sdk.actions.ready();
+  }, []);
+
   const handleCall = (channel: Channel) => {
     if (!address) {
-      alert("Please sign in with Base to make calls.");
+      // Redirect to sign-in gate — user will see the lock screen on the calls tab
+      setActiveTab('call');
       return;
     }
     setActiveChannel(channel);
     setActiveTab('call');
   };
 
+  // Reusable sign-in gate for locked sections
+  const SignInGate = ({ label }: { label: string }) => (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-zinc-950">
+      <div className="p-4 bg-zinc-900 rounded-full">
+        <LockKeyhole className="w-10 h-10 text-zinc-500" />
+      </div>
+      <div className="text-center">
+        <h3 className="text-lg font-semibold text-white mb-1">Sign in to access {label}</h3>
+        <p className="text-zinc-400 text-sm">Connect your Base account to unlock this feature.</p>
+      </div>
+      <SignInWithBaseButton
+        align="center"
+        variant="solid"
+        colorScheme="dark"
+        size="medium"
+        onClick={signIn}
+      />
+    </div>
+  );
+
   const handleEndCall = () => {
     setActiveChannel(null);
   };
 
   return (
-    <main className="flex h-screen w-full bg-black text-white overflow-hidden font-sans">
+    <main className="flex h-screen w-full bg-black text-white overflow-hidden font-sans" suppressHydrationWarning>
       {/* Leftmost Navigation */}
       <div className="w-20 bg-zinc-950 border-r border-white/10 flex flex-col items-center py-6 gap-8 z-20">
         <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -113,9 +140,9 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Auth Button */}
-        <div className="w-full px-3 pb-4">
-          {address ? (
+        {/* Sign Out (only shown when signed in) */}
+        {address && (
+          <div className="w-full px-3 pb-4">
             <button
               onClick={signOut}
               className="w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
@@ -124,17 +151,8 @@ export default function Home() {
               <LogOut className="w-5 h-5" />
               <span className="text-[10px] font-medium">Sign Out</span>
             </button>
-          ) : (
-            <button
-              onClick={signIn}
-              className="w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
-              title="Sign In with Base"
-            >
-              <LogIn className="w-5 h-5" />
-              <span className="text-[10px] font-medium text-center leading-tight">Sign In<br/>Base</span>
-            </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Sidebar Call Pad (Only visible on Calls tab) */}
@@ -143,7 +161,37 @@ export default function Home() {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 relative bg-zinc-950">
+      <div className="flex-1 flex flex-col bg-zinc-950">
+
+        {/* Top Header Bar */}
+        <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-white/5 bg-zinc-950 z-10">
+          <span className="text-sm font-medium text-zinc-500 tracking-wide">DevReLive</span>
+          <div className="flex items-center gap-3">
+            {address ? (
+              <>
+                <span className="text-xs font-mono text-zinc-400 bg-zinc-900 px-3 py-1.5 rounded-lg border border-white/5">
+                  {address.slice(0, 6)}…{address.slice(-4)}
+                </span>
+                <button
+                  onClick={signOut}
+                  className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-zinc-800"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <SignInWithBaseButton
+                align="center"
+                variant="solid"
+                colorScheme="dark"
+                size="small"
+                onClick={signIn}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 relative">
         <AnimatePresence mode="wait">
           {activeTab === 'discord' ? (
             <motion.div
@@ -182,7 +230,7 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              <CalendarView />
+              {!address ? <SignInGate label="Calendar" /> : <CalendarView />}
             </motion.div>
           ) : activeTab === 'integrations' ? (
             <motion.div
@@ -193,7 +241,7 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              <Integrations />
+              {!address ? <SignInGate label="Integrations" /> : <Integrations />}
             </motion.div>
           ) : activeTab === 'profile' ? (
             <motion.div
@@ -204,7 +252,7 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              <ProfileView />
+              {!address ? <SignInGate label="Profile" /> : <ProfileView />}
             </motion.div>
           ) : activeTab === 'admin' ? (
             <motion.div
@@ -215,7 +263,18 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              <AdminView />
+              {!address ? <SignInGate label="Admin" /> : <AdminView />}
+            </motion.div>
+          ) : activeTab === 'call' && !address ? (
+            <motion.div
+              key="call-gate"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0"
+            >
+              <SignInGate label="Calls" />
             </motion.div>
           ) : activeChannel ? (
             <motion.div
@@ -290,6 +349,7 @@ export default function Home() {
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
       </div>
     </main>
   );

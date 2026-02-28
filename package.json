@@ -12,6 +12,7 @@
   "dependencies": {
     "@base-org/account": "^2.5.2",
     "@base-org/account-ui": "^1.0.1",
+    "@farcaster/miniapp-sdk": "^0.2.3",
     "@google/genai": "^1.17.0",
     "@hookform/resolvers": "^5.2.1",
     "autoprefixer": "^10.4.21",
