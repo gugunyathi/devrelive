@@ -9,14 +9,20 @@ import { CalendarView } from '@/components/CalendarView';
 import { RepairView } from '@/components/RepairView';
 import { ProfileView } from '@/components/ProfileView';
 import { AdminView } from '@/components/AdminView';
-import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield } from 'lucide-react';
+import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogIn, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'discord' | 'call' | 'calendar' | 'integrations' | 'repair' | 'profile' | 'admin'>('discord');
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
+  const { address, signIn, signOut } = useAuth();
 
   const handleCall = (channel: Channel) => {
+    if (!address) {
+      alert("Please sign in with Base to make calls.");
+      return;
+    }
     setActiveChannel(channel);
     setActiveTab('call');
   };
@@ -33,7 +39,7 @@ export default function Home() {
           <Bot className="w-7 h-7 text-white" />
         </div>
         
-        <div className="flex flex-col gap-4 w-full px-3">
+        <div className="flex flex-col gap-4 w-full px-3 flex-1">
           <button
             onClick={() => setActiveTab('discord')}
             className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors ${
@@ -105,6 +111,29 @@ export default function Home() {
             <Shield className="w-5 h-5" />
             <span className="text-[10px] font-medium">Admin</span>
           </button>
+        </div>
+
+        {/* Auth Button */}
+        <div className="w-full px-3 pb-4">
+          {address ? (
+            <button
+              onClick={signOut}
+              className="w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
+              title="Sign Out"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Sign Out</span>
+            </button>
+          ) : (
+            <button
+              onClick={signIn}
+              className="w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+              title="Sign In with Base"
+            >
+              <LogIn className="w-5 h-5" />
+              <span className="text-[10px] font-medium text-center leading-tight">Sign In<br/>Base</span>
+            </button>
+          )}
         </div>
       </div>
 

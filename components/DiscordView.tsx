@@ -28,6 +28,11 @@ const SIDEBAR_THREADS = [
   { id: 'thread-5', title: "Suggestion: Change Flashblocks to 40..." },
 ];
 
+const MOCK_REPLIES = [
+  { id: 'r1', author: 'BaseTeam', role: 'admin', time: '10m ago', content: 'We are looking into this issue. Can you provide your wallet address?' },
+  { id: 'r2', author: '0xAlice', role: 'user', time: '5m ago', content: 'Sure, it is 0x1234...5678' },
+];
+
 const TAGS = ['Node', 'Base Account', 'Onchain Kit', 'Mini Apps', 'AI Agents', 'Feedback', 'Bug Report', 'Question', 'Discussion'];
 
 interface DiscordViewProps {
@@ -277,60 +282,65 @@ export function DiscordView({ onStartCall }: DiscordViewProps) {
           </div>
 
           {/* Posts List */}
-          <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
             {MOCK_POSTS.filter(p => p.channelId === activeChannel).map(post => (
               <div 
                 key={post.id}
                 onClick={() => setSelectedPost(post.id)}
-                className={`bg-[#2B2D31] hover:bg-[#2E3035] border border-[#1E1F22]/50 rounded-xl p-4 cursor-pointer transition-colors flex flex-col sm:flex-row gap-4 items-start sm:items-center ${selectedPost === post.id ? 'ring-1 ring-[#5865F2]' : ''}`}
+                className={`bg-[#2B2D31] hover:bg-[#2E3035] border border-[#1E1F22]/50 rounded-xl p-4 cursor-pointer transition-colors flex flex-col gap-3 ${selectedPost === post.id ? 'ring-1 ring-[#5865F2]' : ''}`}
               >
-                <div className="flex-1 min-w-0 flex flex-col gap-2 w-full">
-                  {post.tags.length > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {post.tags.map(tag => (
-                        <span key={tag} className="px-2 py-0.5 bg-[#1E1F22] text-[#DBDEE1] rounded text-xs font-semibold">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <h4 className="text-base sm:text-lg font-semibold text-[#DBDEE1] leading-tight line-clamp-2 sm:truncate">
+                <div className="flex items-start justify-between gap-3">
+                  <h4 className="text-base font-semibold text-[#DBDEE1] leading-snug line-clamp-2">
                     {post.title}
                   </h4>
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-[#949BA4] flex-wrap">
-                    <span className="text-[#5865F2] font-medium hover:underline">{post.author}</span>
+                  {post.hasImage && (
+                    <div className="relative w-16 h-16 bg-[#1E1F22] rounded-lg border border-[#1E1F22]/50 flex-shrink-0 overflow-hidden">
+                      <Image src={`https://picsum.photos/seed/${post.id}/100/100`} alt="Post thumbnail" fill className="object-cover opacity-80" referrerPolicy="no-referrer" />
+                    </div>
+                  )}
+                </div>
+                
+                {post.tags.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {post.tags.map(tag => (
+                      <span key={tag} className="px-2 py-0.5 bg-[#1E1F22] text-[#DBDEE1] rounded text-xs font-semibold">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mt-auto pt-3 border-t border-[#1E1F22]/50">
+                  <div className="flex items-center gap-2 text-xs text-[#949BA4]">
+                    <div className="w-5 h-5 rounded-full bg-[#5865F2] flex items-center justify-center text-white font-bold text-[10px] shrink-0">
+                      {post.author.charAt(0)}
+                    </div>
+                    <span className="font-medium hover:underline text-[#DBDEE1]">{post.author}</span>
                     <span>•</span>
+                    <span>{post.time}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[#949BA4] text-xs font-medium">
                     <div className="flex items-center gap-1">
                       <MessageSquare className="w-4 h-4" />
                       {post.replies}
                     </div>
-                    <span>•</span>
-                    <span>{post.time}</span>
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        const context = `Thread Title: ${post.title}\nAuthor: ${post.author}\nContent: I'm having trouble with my application on base.dev. When I try to access the link, it throws an error and asks me to verify my identity, but the verification process never completes.\nLogs:\nError: Verification timeout at 30000ms\nat Object.verifyIdentity (/app/src/auth.ts:42:15)\nat processTicksAndRejections (node:internal/process/task_queues:95:5)`;
+                        onStartCall?.(post.title, context); 
+                      }}
+                      className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                    >
+                      <Phone className="w-3 h-3" />
+                      Call
+                    </button>
                   </div>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto shrink-0 mt-2 sm:mt-0">
-                  {post.hasImage && (
-                    <div className="relative w-full sm:w-32 h-32 sm:h-20 bg-[#1E1F22] rounded-lg border border-[#1E1F22]/50 flex-shrink-0 overflow-hidden">
-                      <Image src={`https://picsum.photos/seed/${post.id}/200/100`} alt="Post thumbnail" fill className="object-cover opacity-80" referrerPolicy="no-referrer" />
-                    </div>
-                  )}
-                  <button 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      const context = `Thread Title: ${post.title}\nAuthor: ${post.author}\nContent: I'm having trouble with my application on base.dev. When I try to access the link, it throws an error and asks me to verify my identity, but the verification process never completes.\nLogs:\nError: Verification timeout at 30000ms\nat Object.verifyIdentity (/app/src/auth.ts:42:15)\nat processTicksAndRejections (node:internal/process/task_queues:95:5)`;
-                      onStartCall?.(post.title, context); 
-                    }}
-                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 sm:py-1.5 rounded font-medium transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Phone className="w-4 h-4" />
-                    Call
-                  </button>
                 </div>
               </div>
             ))}
             {MOCK_POSTS.filter(p => p.channelId === activeChannel).length === 0 && (
-              <div className="text-center text-[#949BA4] py-12">
+              <div className="col-span-full text-center text-[#949BA4] py-12">
                 <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-20" />
                 <p>No posts in this channel yet.</p>
               </div>
@@ -362,175 +372,200 @@ export function DiscordView({ onStartCall }: DiscordViewProps) {
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-0 custom-scrollbar flex flex-col">
             {(() => {
               const post = MOCK_POSTS.find(p => p.id === selectedPost);
               if (!post) return null;
               return (
-                <div className="flex flex-col gap-6">
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-2 leading-snug">{post.title}</h2>
-                    <div className="flex items-center gap-2 text-sm text-[#949BA4]">
-                      <div className="w-6 h-6 rounded-full bg-[#5865F2] flex items-center justify-center text-white font-bold text-xs shrink-0">
+                <>
+                  {/* Original Post */}
+                  <div className="p-4 border-b border-[#1E1F22] bg-[#2B2D31]">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#5865F2] flex items-center justify-center text-white font-bold shrink-0">
                         {post.author.charAt(0)}
                       </div>
-                      <span className="text-white font-medium truncate">{post.author}</span>
-                      <span className="shrink-0">{post.time}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="text-[#DBDEE1] text-sm leading-relaxed bg-[#2B2D31] p-4 rounded-lg border border-[#1E1F22]/50">
-                    <p>I&apos;m having trouble with my application on base.dev. When I try to access the link, it throws an error and asks me to verify my identity, but the verification process never completes.</p>
-                    <p className="mt-4">Has anyone else experienced this issue recently? Here are my logs:</p>
-                    <pre className="mt-2 bg-[#1E1F22] p-3 rounded border border-[#1E1F22] font-mono text-xs text-[#949BA4] overflow-x-auto">
-                      <code>
-                        Error: Verification timeout at 30000ms{'\n'}
-                        at Object.verifyIdentity (/app/src/auth.ts:42:15){'\n'}
-                        at processTicksAndRejections (node:internal/process/task_queues:95:5)
-                      </code>
-                    </pre>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-center gap-2 mt-2">
-                    <button 
-                      onClick={() => setShowCalendar(!showCalendar)}
-                      className="w-full sm:flex-1 bg-[#4E5058] hover:bg-[#6D6F78] text-white py-2 rounded font-medium transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Calendar className="w-4 h-4" />
-                      Schedule Call
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const context = `Thread Title: ${post.title}\nAuthor: ${post.author}\nContent: I'm having trouble with my application on base.dev. When I try to access the link, it throws an error and asks me to verify my identity, but the verification process never completes.\nLogs:\nError: Verification timeout at 30000ms\nat Object.verifyIdentity (/app/src/auth.ts:42:15)\nat processTicksAndRejections (node:internal/process/task_queues:95:5)`;
-                        onStartCall?.(post.title, context);
-                      }}
-                      className="w-full sm:flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded font-medium transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Phone className="w-4 h-4" />
-                      Call DevRel
-                    </button>
-                  </div>
-
-                  {showCalendar && !isScheduled && (
-                    <div className="bg-[#2B2D31] rounded-xl border border-[#1E1F22]/50 p-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <h4 className="text-white font-medium mb-4 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-indigo-400" />
-                        Select Date & Time
-                      </h4>
-                      
-                      {/* Simple Calendar Grid */}
-                      <div className="mb-4">
-                        <div className="flex justify-between items-center mb-2 text-sm">
-                          <span className="text-white font-medium">March 2026</span>
-                          <div className="flex gap-2">
-                            <button className="text-[#949BA4] hover:text-white"><ChevronDown className="w-4 h-4 rotate-90" /></button>
-                            <button className="text-[#949BA4] hover:text-white"><ChevronDown className="w-4 h-4 -rotate-90" /></button>
-                          </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-white font-medium hover:underline cursor-pointer">{post.author}</span>
+                          <span className="text-xs text-[#949BA4]">{post.time}</span>
                         </div>
-                        <div className="grid grid-cols-7 gap-1 text-center text-xs mb-1 text-[#949BA4]">
-                          <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
-                        </div>
-                        <div className="grid grid-cols-7 gap-1 text-sm">
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                            <button
-                              key={day}
-                              onClick={() => setSelectedDate(day)}
-                              className={`aspect-square rounded flex items-center justify-center transition-colors ${
-                                selectedDate === day 
-                                  ? 'bg-indigo-500 text-white font-bold' 
-                                  : 'text-[#DBDEE1] hover:bg-[#3F4147]'
-                              }`}
-                            >
-                              {day}
-                            </button>
-                          ))}
+                        <h2 className="text-lg font-bold text-white mt-1 mb-2 leading-snug">{post.title}</h2>
+                        <div className="text-[#DBDEE1] text-sm leading-relaxed">
+                          <p>I'm having trouble with my application on base.dev. When I try to access the link, it throws an error and asks me to verify my identity, but the verification process never completes.</p>
+                          <p className="mt-4">Has anyone else experienced this issue recently? Here are my logs:</p>
+                          <pre className="mt-2 bg-[#1E1F22] p-3 rounded border border-[#1E1F22] font-mono text-xs text-[#949BA4] overflow-x-auto">
+                            <code>
+                              Error: Verification timeout at 30000ms{'\n'}
+                              at Object.verifyIdentity (/app/src/auth.ts:42:15){'\n'}
+                              at processTicksAndRejections (node:internal/process/task_queues:95:5)
+                            </code>
+                          </pre>
                         </div>
                       </div>
+                    </div>
+                  </div>
 
-                      {/* Time Slots */}
-                      {selectedDate && (
-                        <div className="mb-4 animate-in fade-in duration-200">
-                          <h5 className="text-xs font-semibold text-[#949BA4] uppercase mb-2 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Available Times
-                          </h5>
-                          <div className="grid grid-cols-3 gap-2">
-                            {['10:00 AM', '11:30 AM', '1:00 PM', '2:30 PM', '4:00 PM', '5:30 PM'].map(time => (
+                  {/* Replies */}
+                  <div className="flex-1 p-4 flex flex-col gap-4">
+                    {MOCK_REPLIES.map(reply => (
+                      <div key={reply.id} className="flex items-start gap-3 hover:bg-[#2E3035] -mx-4 px-4 py-1 transition-colors">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0 ${reply.role === 'admin' ? 'bg-emerald-500' : 'bg-[#5865F2]'}`}>
+                          {reply.author.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2">
+                            <span className={`font-medium hover:underline cursor-pointer ${reply.role === 'admin' ? 'text-emerald-400' : 'text-white'}`}>{reply.author}</span>
+                            {reply.role === 'admin' && <span className="bg-[#5865F2] text-white text-[10px] px-1 rounded uppercase font-bold ml-1">Admin</span>}
+                            <span className="text-xs text-[#949BA4] ml-1">{reply.time}</span>
+                          </div>
+                          <div className="text-[#DBDEE1] text-sm leading-relaxed mt-0.5">
+                            {reply.content}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Action Buttons & Reply Input */}
+                  <div className="p-4 bg-[#313338] mt-auto shrink-0 border-t border-[#1E1F22]">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 mb-4">
+                      <button 
+                        onClick={() => setShowCalendar(!showCalendar)}
+                        className="w-full sm:flex-1 bg-[#2B2D31] hover:bg-[#3F4147] text-[#DBDEE1] py-2 rounded font-medium transition-colors flex items-center justify-center gap-2 border border-[#1E1F22]"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        Schedule Call
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const context = `Thread Title: ${post.title}\nAuthor: ${post.author}\nContent: I'm having trouble with my application on base.dev. When I try to access the link, it throws an error and asks me to verify my identity, but the verification process never completes.\nLogs:\nError: Verification timeout at 30000ms\nat Object.verifyIdentity (/app/src/auth.ts:42:15)\nat processTicksAndRejections (node:internal/process/task_queues:95:5)`;
+                          onStartCall?.(post.title, context);
+                        }}
+                        className="w-full sm:flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded font-medium transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Phone className="w-4 h-4" />
+                        Call DevRel
+                      </button>
+                    </div>
+
+                    {showCalendar && !isScheduled && (
+                      <div className="bg-[#2B2D31] rounded-xl border border-[#1E1F22]/50 p-4 mb-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <h4 className="text-white font-medium mb-4 flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-indigo-400" />
+                          Select Date & Time
+                        </h4>
+                        
+                        {/* Simple Calendar Grid */}
+                        <div className="mb-4">
+                          <div className="flex justify-between items-center mb-2 text-sm">
+                            <span className="text-white font-medium">March 2026</span>
+                            <div className="flex gap-2">
+                              <button className="text-[#949BA4] hover:text-white"><ChevronDown className="w-4 h-4 rotate-90" /></button>
+                              <button className="text-[#949BA4] hover:text-white"><ChevronDown className="w-4 h-4 -rotate-90" /></button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-7 gap-1 text-center text-xs mb-1 text-[#949BA4]">
+                            <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+                          </div>
+                          <div className="grid grid-cols-7 gap-1 text-sm">
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                               <button
-                                key={time}
-                                onClick={() => setSelectedTime(time)}
-                                className={`py-1.5 rounded text-xs font-medium transition-colors border ${
-                                  selectedTime === time
-                                    ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
-                                    : 'bg-[#1E1F22] border-[#1E1F22] text-[#DBDEE1] hover:border-[#4E5058]'
+                                key={day}
+                                onClick={() => setSelectedDate(day)}
+                                className={`aspect-square rounded flex items-center justify-center transition-colors ${
+                                  selectedDate === day 
+                                    ? 'bg-indigo-500 text-white font-bold' 
+                                    : 'text-[#DBDEE1] hover:bg-[#3F4147]'
                                 }`}
                               >
-                                {time}
+                                {day}
                               </button>
                             ))}
                           </div>
                         </div>
-                      )}
 
-                      <button 
-                        disabled={!selectedDate || !selectedTime}
-                        onClick={() => setIsScheduled(true)}
-                        className="w-full bg-indigo-500 hover:bg-indigo-600 disabled:bg-[#3F4147] disabled:text-[#949BA4] text-white py-2 rounded font-medium transition-colors"
-                      >
-                        Confirm Schedule
-                      </button>
-                    </div>
-                  )}
+                        {/* Time Slots */}
+                        {selectedDate && (
+                          <div className="mb-4 animate-in fade-in duration-200">
+                            <h5 className="text-xs font-semibold text-[#949BA4] uppercase mb-2 flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> Available Times
+                            </h5>
+                            <div className="grid grid-cols-3 gap-2">
+                              {['10:00 AM', '11:30 AM', '1:00 PM', '2:30 PM', '4:00 PM', '5:30 PM'].map(time => (
+                                <button
+                                  key={time}
+                                  onClick={() => setSelectedTime(time)}
+                                  className={`py-1.5 rounded text-xs font-medium transition-colors border ${
+                                    selectedTime === time
+                                      ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
+                                      : 'bg-[#1E1F22] border-[#1E1F22] text-[#DBDEE1] hover:border-[#4E5058]'
+                                  }`}
+                                >
+                                  {time}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-                  {isScheduled && (
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex flex-col items-center justify-center text-center gap-2 animate-in zoom-in-95 duration-200">
-                      <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-1">
-                        <CheckCircle2 className="w-6 h-6" />
-                      </div>
-                      <h4 className="text-emerald-400 font-medium">Call Scheduled!</h4>
-                      <p className="text-sm text-emerald-400/80">
-                        A DevRel will call you on March {selectedDate} at {selectedTime}.
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-3">
-                    {replyImage && (
-                      <div className="relative inline-block w-32 h-32 rounded-lg overflow-hidden border border-[#1E1F22]">
-                        <Image src={replyImage} alt="Upload preview" fill className="object-cover" referrerPolicy="no-referrer" />
                         <button 
-                          onClick={() => setReplyImage(null)}
-                          className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full p-1"
+                          disabled={!selectedDate || !selectedTime}
+                          onClick={() => setIsScheduled(true)}
+                          className="w-full bg-indigo-500 hover:bg-indigo-600 disabled:bg-[#3F4147] disabled:text-[#949BA4] text-white py-2 rounded font-medium transition-colors"
                         >
-                          <X className="w-4 h-4" />
+                          Confirm Schedule
                         </button>
                       </div>
                     )}
-                    <div className="bg-[#383A40] rounded-lg p-2 flex items-center gap-2">
-                      <button 
-                        onClick={() => replyFileInputRef.current?.click()}
-                        className="w-8 h-8 rounded-full bg-[#404249] hover:bg-[#4E5058] flex items-center justify-center text-[#DBDEE1] shrink-0"
-                        title="Upload Image"
-                      >
-                        <Plus className="w-5 h-5" />
-                      </button>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
-                        ref={replyFileInputRef}
-                        onChange={(e) => handleImageUpload(e, setReplyImage)}
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Reply in Thread..." 
-                        className="bg-transparent border-none outline-none flex-1 text-[#DBDEE1] placeholder-[#949BA4] text-sm"
-                      />
-                      <button className="bg-[#5865F2] hover:bg-[#4752C4] text-white px-3 py-1.5 rounded font-medium transition-colors text-sm">
-                        Reply
-                      </button>
+
+                    {isScheduled && (
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 mb-4 flex flex-col items-center justify-center text-center gap-2 animate-in zoom-in-95 duration-200">
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-1">
+                          <CheckCircle2 className="w-6 h-6" />
+                        </div>
+                        <h4 className="text-emerald-400 font-medium">Call Scheduled!</h4>
+                        <p className="text-sm text-emerald-400/80">
+                          A DevRel will call you on March {selectedDate} at {selectedTime}.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-3">
+                      {replyImage && (
+                        <div className="relative inline-block w-32 h-32 rounded-lg overflow-hidden border border-[#1E1F22]">
+                          <Image src={replyImage} alt="Upload preview" fill className="object-cover" referrerPolicy="no-referrer" />
+                          <button 
+                            onClick={() => setReplyImage(null)}
+                            className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full p-1"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                      <div className="bg-[#383A40] rounded-lg p-2 flex items-center gap-2">
+                        <button 
+                          onClick={() => replyFileInputRef.current?.click()}
+                          className="w-8 h-8 rounded-full bg-[#404249] hover:bg-[#4E5058] flex items-center justify-center text-[#DBDEE1] shrink-0"
+                          title="Upload Image"
+                        >
+                          <Plus className="w-5 h-5" />
+                        </button>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          ref={replyFileInputRef}
+                          onChange={(e) => handleImageUpload(e, setReplyImage)}
+                        />
+                        <input 
+                          type="text" 
+                          placeholder={`Message in ${post.title}`} 
+                          className="bg-transparent border-none outline-none flex-1 text-[#DBDEE1] placeholder-[#949BA4] text-sm"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                </>
               );
             })()}
           </div>

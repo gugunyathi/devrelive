@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Users, PhoneCall, AlertCircle, CheckCircle2, ArrowRightLeft, FileText, Search, Filter, MoreVertical, Clock, ShieldAlert } from 'lucide-react';
+import { Users, PhoneCall, AlertCircle, CheckCircle2, ArrowRightLeft, FileText, Search, Filter, MoreVertical, Clock, ShieldAlert, Lock, User } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CallRecord {
   id: string;
@@ -21,6 +22,28 @@ const MOCK_CALLS: CallRecord[] = [
 
 export function AdminView() {
   const [activeTab, setActiveTab] = useState<'overview' | 'calls' | 'issues' | 'escalations' | 'reports'>('overview');
+  const { address, signIn } = useAuth();
+
+  if (!address) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-zinc-950 text-white p-8">
+        <div className="w-16 h-16 rounded-2xl bg-zinc-900 flex items-center justify-center border border-white/5 mb-6">
+          <Lock className="w-8 h-8 text-zinc-500" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2">Admin Access Restricted</h2>
+        <p className="text-zinc-400 text-center max-w-md mb-8">
+          You must be signed in with an authorized Base account to view the admin dashboard.
+        </p>
+        <button 
+          onClick={signIn}
+          className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+        >
+          <User className="w-5 h-5" />
+          Sign In with Base
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full w-full bg-zinc-950 text-white overflow-hidden">
