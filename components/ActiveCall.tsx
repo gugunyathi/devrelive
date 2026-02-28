@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { PhoneOff, MonitorUp, MonitorOff, Mic, MicOff, Video, VideoOff, Send } from 'lucide-react';
+import { PhoneOff, MonitorUp, MonitorOff, Mic, MicOff, Video, VideoOff, Send, Link as LinkIcon, UserPlus, Users, LogOut } from 'lucide-react';
 import { useGeminiLive } from '@/hooks/use-gemini-live';
 import { Channel } from './CallPad';
 
@@ -61,9 +61,10 @@ function useRingbackTone(isConnecting: boolean) {
 interface ActiveCallProps {
   channel: Channel;
   onEndCall: () => void;
+  isHost?: boolean;
 }
 
-export function ActiveCall({ channel, onEndCall }: ActiveCallProps) {
+export function ActiveCall({ channel, onEndCall, isHost = true }: ActiveCallProps) {
   const { isConnected, isConnecting, error, transcript, connect, disconnect, sendScreenFrame, sendTextMessage } = useGeminiLive(channel.name, channel.context);
   
   useRingbackTone(isConnecting);
@@ -72,6 +73,11 @@ export function ActiveCall({ channel, onEndCall }: ActiveCallProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(false);
   const [chatInput, setChatInput] = useState('');
+  const [showInviteCopied, setShowInviteCopied] = useState(false);
+  const [participants, setParticipants] = useState<{ id: string; name: string; role: 'host' | 'devrel' | 'guest' }[]>([
+    { id: '1', name: 'You', role: 'host' },
+  ]);
+
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
   const screenVideoRef = useRef<HTMLVideoElement>(null);
@@ -175,6 +181,55 @@ export function ActiveCall({ channel, onEndCall }: ActiveCallProps) {
     }
   }, [transcript]);
 
+  const copyInviteLink = () => {
+    const inviteLink = `${window.location.origin}/join/${channel.id}`;
+    navigator.clipboard.writeText(inviteLink);
+    setShowInviteCopied(true);
+    setTimeout(() => setShowInviteCopied(false), 2000);
+  };
+
+  const requestHumanDevRel = () => {
+    // In a real implementation this would ping a signaling server or DevRel queue
+    sendTextMessage("I need a human DevRel to join this call.");
+    
+    // Simulate a DevRel joining after a few seconds
+    setTimeout(() => {
+      setParticipants(prev => [...prev, { id: 'devrel-1', name: 'Jesse (Base DevRel)', role: 'devrel' }]);
+    }, 3000);
+  };
+
+  const endCallWithHistory = async () => {
+    if (transcript.length > 0) {
+      const savedCalls = JSON.parse(localStorage.getItem('devrelive_calls') || '[]');
+      const callData = {
+        id: Date.now().toString(),
+        channelName: channel.name,
+        date: new Date().toISOString(),
+        transcript: transcript
+      };
+      savedCalls.push(callData);
+      localStorage.setItem('devrelive_calls', JSON.stringify(savedCalls));
+
+      // Save to MongoDB
+      try {
+        await fetch('/api/calls', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            channelName: channel.name,
+            hostAddress: participants[0]?.id || 'unknown', // Simplified mapping
+            participants: participants.map(p => p.id),
+            duration: 0, // Placeholder
+            transcript: transcript.map(t => ({ role: t.role, text: t.text, timestamp: new Date() }))
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to save call to DB', err);
+      }
+    }
+    onEndCall();
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 h-full relative">
       <canvas ref={canvasRef} className="hidden" />
@@ -201,6 +256,31 @@ export function ActiveCall({ channel, onEndCall }: ActiveCallProps) {
               )}
             </div>
           </div>
+        </div>
+        
+        {/* Top-right Actions */}
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <button
+              onClick={copyInviteLink}
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-sm font-medium text-white rounded-lg transition-colors border border-white/5"
+            >
+              <LinkIcon className="w-4 h-4" />
+              Invite Team
+            </button>
+            {showInviteCopied && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-1 bg-emerald-500 text-white text-xs font-medium rounded shadow-lg whitespace-nowrap z-50">
+                Link copied!
+              </div>
+            )}
+          </div>
+          <button
+            onClick={requestHumanDevRel}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-sm font-medium text-white rounded-lg transition-colors"
+          >
+            <UserPlus className="w-4 h-4" />
+            Request Human DevRel
+          </button>
         </div>
       </div>
 
@@ -239,9 +319,28 @@ export function ActiveCall({ channel, onEndCall }: ActiveCallProps) {
             </div>
             <div className="p-3 bg-zinc-900 border-t border-white/10 text-center">
               <div className="text-sm font-medium text-white">DevRel Assistant</div>
-              <div className="text-xs text-zinc-500">Base Support</div>
+              <div className="text-xs text-zinc-500">Base AI Support</div>
             </div>
           </div>
+
+          {/* Grid of other participants */}
+          {participants.filter(p => p.id !== '1').length > 0 && (
+            <div className="absolute left-6 top-6 flex flex-col gap-4">
+              {participants.filter(p => p.id !== '1').map((p) => (
+                <div key={p.id} className="w-48 h-32 bg-zinc-950 rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+                  <div className="flex-1 flex items-center justify-center bg-zinc-800">
+                    <div className="w-12 h-12 rounded-full bg-zinc-700 flex items-center justify-center text-white font-medium">
+                      {p.name.charAt(0)}
+                    </div>
+                  </div>
+                  <div className="p-2 bg-zinc-900 border-t border-white/10 text-center truncate">
+                    <div className="text-xs font-medium text-white truncate px-2">{p.name}</div>
+                    <div className="text-[10px] text-zinc-500 capitalize">{p.role}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Transcript Sidebar */}
@@ -324,25 +423,23 @@ export function ActiveCall({ channel, onEndCall }: ActiveCallProps) {
 
         <div className="w-px h-8 bg-white/10 mx-2" />
 
-        <button
-          onClick={() => {
-            if (transcript.length > 0) {
-              const savedCalls = JSON.parse(localStorage.getItem('devrelive_calls') || '[]');
-              savedCalls.push({
-                id: Date.now().toString(),
-                channelName: channel.name,
-                date: new Date().toISOString(),
-                transcript: transcript
-              });
-              localStorage.setItem('devrelive_calls', JSON.stringify(savedCalls));
-            }
-            onEndCall();
-          }}
-          className="px-8 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-2 transition-colors"
-        >
-          <PhoneOff className="w-5 h-5" />
-          End Call
-        </button>
+        {isHost ? (
+          <button
+            onClick={endCallWithHistory}
+            className="px-8 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-2 transition-colors"
+          >
+            <PhoneOff className="w-5 h-5" />
+            End Call
+          </button>
+        ) : (
+          <button
+            onClick={onEndCall}
+            className="px-8 h-14 rounded-full bg-zinc-800 hover:bg-zinc-700 text-white font-medium flex items-center gap-2 transition-colors border border-white/10"
+          >
+            <LogOut className="w-5 h-5 text-red-400" />
+            Leave Call
+          </button>
+        )}
       </div>
     </div>
   );

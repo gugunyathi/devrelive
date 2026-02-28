@@ -63,6 +63,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAddress(userAddress);
       localStorage.setItem('devrelive_address', userAddress);
 
+      // Save user to database
+      try {
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: userAddress }),
+        });
+      } catch (dbErr) {
+        console.error('Failed to save user to DB:', dbErr);
+      }
+
       // Log auth data for optional backend verification
       const { message, signature } = accounts[0].capabilities.signInWithEthereum;
       console.log('Base Account auth:', { address: userAddress, message, signature });
