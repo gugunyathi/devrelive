@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const provider = getSDK().getProvider();
       const nonce = generateNonce();
 
-      const { accounts } = await provider.request({
+      const result = await provider.request({
         method: 'wallet_connect',
         params: [
           {
@@ -57,7 +57,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             },
           },
         ],
-      });
+      }) as {
+        accounts: {
+          address: string;
+          capabilities: {
+            signInWithEthereum: { message: string; signature: string };
+          };
+        }[];
+      };
+      const { accounts } = result;
 
       const { address: userAddress } = accounts[0];
       setAddress(userAddress);
