@@ -11,7 +11,6 @@ const MOCK_POSTS = [
   { id: 'thread-3', channelId: 'developer-forum', title: "PathDB geth snapshot?", author: "Charlie", replies: 8, time: "3h ago", tags: ["Node"], hasImage: false },
   { id: 'thread-4', channelId: 'developer-forum', title: "Domain migration", author: "Dave", replies: 15, time: "4h ago", tags: [], hasImage: false },
   { id: 'thread-5', channelId: 'developer-forum', title: "Suggestion: Change Flashblocks to 40...", author: "Eve", replies: 22, time: "5h ago", tags: ["Feedback"], hasImage: false },
-  { id: 'job-1', channelId: 'jobs', title: "Looking for a Senior Smart Contract Engineer", author: "BaseHR", replies: 0, time: "10m ago", tags: [], hasImage: false },
   { id: 'chat-1', channelId: 'developer-chat', title: "GM builders! What are you working on today?", author: "Jesse", replies: 104, time: "1h ago", tags: [], hasImage: false },
   { id: 'node-1', channelId: 'node-operators', title: "Node sync stuck at block 1420593", author: "NodeRunner", replies: 3, time: "5m ago", tags: ["Bug Report"], hasImage: true },
   { id: 'mini-1', channelId: 'mini-apps', title: "Best practices for mini app routing?", author: "FrontendDev", replies: 7, time: "20m ago", tags: ["Question"], hasImage: false },
@@ -114,15 +113,6 @@ export function DiscordView({ onStartCall }: DiscordViewProps) {
 
         {/* Channel List */}
         <div className="flex-1 overflow-y-auto py-3 px-2 space-y-[2px] custom-scrollbar">
-          <div 
-            onClick={() => handleChannelClick('jobs')}
-            className={getChannelClass('jobs')}
-          >
-            <span className="mr-1.5 text-lg">💼</span>
-            <span className="flex-1 truncate">| jobs</span>
-            <span className="text-xs font-bold text-blue-400 opacity-0 group-hover:opacity-100">26 New</span>
-          </div>
-
           <div className="mt-4 mb-1 px-2 flex items-center text-xs font-semibold text-[#949BA4] hover:text-[#DBDEE1] cursor-pointer uppercase tracking-wider">
             <ChevronDown className="w-3 h-3 mr-1" />
             Base Developers
