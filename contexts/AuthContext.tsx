@@ -25,10 +25,6 @@ function getSDK() {
   return sdkInstance;
 }
 
-function generateNonce() {
-  return window.crypto.randomUUID().replace(/-/g, '');
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,8 +38,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const provider = getSDK().getProvider();
-      const nonce = generateNonce();
 
+      // 1 — fetch nonce from server (prevents reuse attacks)
+      const { nonce } = await fetch('/api/auth/nonce').then(r => r.json());
+
+      // 2 — switch to Base Mainnet
+      try {
+        await provider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x2105' }],
+        });
+      } catch {
+        // Non-fatal — some wallets don't support this method
+      }
+
+      // 3 — connect + sign-in with Ethereum
       const result = await provider.request({
         method: 'wallet_connect',
         params: [
@@ -66,12 +75,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }[];
       };
       const { accounts } = result;
-
       const { address: userAddress } = accounts[0];
+      const { message, signature } = accounts[0].capabilities.signInWithEthereum;
+
+      // 4 — verify signature server-side
+      const verifyRes = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: userAddress, message, signature }),
+      });
+
+      if (!verifyRes.ok) {
+        const err = await verifyRes.json();
+        throw new Error(err.error ?? 'Signature verification failed');
+      }
+
+      // 5 — persist session
       setAddress(userAddress);
       localStorage.setItem('devrelive_address', userAddress);
 
-      // Save user to database
+      // 6 — upsert user in MongoDB
       try {
         await fetch('/api/users', {
           method: 'POST',
@@ -81,10 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (dbErr) {
         console.error('Failed to save user to DB:', dbErr);
       }
-
-      // Log auth data for optional backend verification
-      const { message, signature } = accounts[0].capabilities.signInWithEthereum;
-      console.log('Base Account auth:', { address: userAddress, message, signature });
     } catch (err) {
       console.error('Sign-in failed:', err);
     } finally {
@@ -95,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     setAddress(null);
     localStorage.removeItem('devrelive_address');
-    sdkInstance = null; // reset SDK so a fresh provider is created on next sign-in
+    sdkInstance = null;
   }, []);
 
   return (
