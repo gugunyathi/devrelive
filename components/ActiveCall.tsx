@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { PhoneOff, MonitorUp, MonitorOff, Mic, MicOff, Video, VideoOff, Send, Link as LinkIcon, UserPlus, Users, LogOut } from 'lucide-react';
 import { useGeminiLive } from '@/hooks/use-gemini-live';
 import { Channel } from './CallPad';
+import { useAuth } from '@/contexts/AuthContext';
 
 function useRingbackTone(isConnecting: boolean) {
   useEffect(() => {
@@ -66,7 +67,8 @@ interface ActiveCallProps {
 
 export function ActiveCall({ channel, onEndCall, isHost = true }: ActiveCallProps) {
   const { isConnected, isConnecting, error, transcript, connect, disconnect, sendScreenFrame, sendTextMessage } = useGeminiLive(channel.name, channel.context);
-  
+  const { address, userId } = useAuth();
+
   useRingbackTone(isConnecting);
 
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -74,10 +76,12 @@ export function ActiveCall({ channel, onEndCall, isHost = true }: ActiveCallProp
   const [isVideoOn, setIsVideoOn] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [showInviteCopied, setShowInviteCopied] = useState(false);
+  const [hasHumanDevRel, setHasHumanDevRel] = useState(false);
   const [participants, setParticipants] = useState<{ id: string; name: string; role: 'host' | 'devrel' | 'guest' }[]>([
-    { id: '1', name: 'You', role: 'host' },
+    { id: address ?? '1', name: 'You', role: 'host' },
   ]);
 
+  const callStartTime = useRef<Date>(new Date());
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
   const screenVideoRef = useRef<HTMLVideoElement>(null);
@@ -189,9 +193,9 @@ export function ActiveCall({ channel, onEndCall, isHost = true }: ActiveCallProp
   };
 
   const requestHumanDevRel = () => {
-    // In a real implementation this would ping a signaling server or DevRel queue
-    sendTextMessage("I need a human DevRel to join this call.");
-    
+    // Pings a signaling server / DevRel queue in production
+    sendTextMessage('I need a human DevRel to join this call.');
+    setHasHumanDevRel(true);
     // Simulate a DevRel joining after a few seconds
     setTimeout(() => {
       setParticipants(prev => [...prev, { id: 'devrel-1', name: 'Jesse (Base DevRel)', role: 'devrel' }]);
@@ -199,32 +203,50 @@ export function ActiveCall({ channel, onEndCall, isHost = true }: ActiveCallProp
   };
 
   const endCallWithHistory = async () => {
+    const endTime = new Date();
+    const durationSeconds = Math.round((endTime.getTime() - callStartTime.current.getTime()) / 1000);
+
     if (transcript.length > 0) {
+      // Persist locally as fallback
       const savedCalls = JSON.parse(localStorage.getItem('devrelive_calls') || '[]');
-      const callData = {
+      const localEntry = {
         id: Date.now().toString(),
         channelName: channel.name,
-        date: new Date().toISOString(),
-        transcript: transcript
+        date: callStartTime.current.toISOString(),
+        duration: durationSeconds,
+        hasHumanDevRel,
+        transcript,
       };
-      savedCalls.push(callData);
+      savedCalls.push(localEntry);
       localStorage.setItem('devrelive_calls', JSON.stringify(savedCalls));
 
-      // Save to MongoDB
+      // Persist to MongoDB with full metadata
       try {
         await fetch('/api/calls', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             channelName: channel.name,
-            hostAddress: participants[0]?.id || 'unknown', // Simplified mapping
-            participants: participants.map(p => p.id),
-            duration: 0, // Placeholder
-            transcript: transcript.map(t => ({ role: t.role, text: t.text, timestamp: new Date() }))
+            topic: channel.context ?? channel.name,
+            hostAddress: address ?? 'anonymous',
+            hostUserId: userId ?? undefined,
+            participants: participants.map(p => ({
+              address: p.id.startsWith('0x') ? p.id : undefined,
+              role: p.role,
+            })),
+            startTime: callStartTime.current.toISOString(),
+            endTime: endTime.toISOString(),
+            duration: durationSeconds,
+            hasHumanDevRel,
+            transcript: transcript.map(t => ({
+              role: t.role,
+              text: t.text,
+              timestamp: new Date(),
+            })),
           }),
         });
       } catch (err) {
-        console.error('Failed to save call to DB', err);
+        console.error('Failed to save call to DB:', err);
       }
     }
     onEndCall();

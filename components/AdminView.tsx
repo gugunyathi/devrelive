@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { Users, PhoneCall, AlertCircle, CheckCircle2, ArrowRightLeft, FileText, Search, Filter, MoreVertical, Clock, ShieldAlert, Lock, User } from 'lucide-react';
+import { Users, PhoneCall, AlertCircle, CheckCircle2, ArrowRightLeft, FileText, Search, Filter, MoreVertical, Clock, ShieldAlert, Lock, User, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface CallRecord {
@@ -12,6 +12,23 @@ interface CallRecord {
   date: string;
 }
 
+interface AdminStats {
+  users: { total: number; newToday: number };
+  calls: { total: number; today: number; totalDuration: number; avgDuration: number };
+  issues: { total: number; open: number; resolved: number; resolutionRate: number };
+  activeSessions: number;
+}
+
+interface IssueRecord {
+  _id: string;
+  issueId: string;
+  title: string;
+  reportedBy: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  status: string;
+  createdAt: string;
+}
+
 const MOCK_CALLS: CallRecord[] = [
   { id: 'CAL-001', user: '0xAlex', duration: '14:23', status: 'resolved', topic: 'Smart Contract Deployment', date: '2 mins ago' },
   { id: 'CAL-002', user: 'SarahDev', duration: '45:10', status: 'escalated', topic: 'Account Abstraction Gas Issue', date: '1 hour ago' },
@@ -20,9 +37,92 @@ const MOCK_CALLS: CallRecord[] = [
   { id: 'CAL-005', user: 'Web3Wizard', duration: '12:30', status: 'resolved', topic: 'Base Node Sync', date: '1 day ago' },
 ];
 
+const MOCK_ISSUES: IssueRecord[] = [
+  { _id: '1', issueId: 'ISS-102', title: 'Paymaster Configuration Error', reportedBy: '0xCryptoNinja', priority: 'high', status: 'open', createdAt: new Date(Date.now() - 5 * 3600000).toISOString() },
+  { _id: '2', issueId: 'ISS-103', title: 'Smart Contract Verification Failing', reportedBy: '0xDevAlice', priority: 'medium', status: 'open', createdAt: new Date(Date.now() - 86400000).toISOString() },
+  { _id: '3', issueId: 'ISS-104', title: 'RPC Node Rate Limits', reportedBy: '0xNodeRunner', priority: 'low', status: 'open', createdAt: new Date(Date.now() - 2 * 86400000).toISOString() },
+];
+
+function formatDuration(seconds: number): string {
+  if (!seconds) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min${mins > 1 ? 's' : ''} ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days} day${days > 1 ? 's' : ''} ago`;
+}
+
 export function AdminView() {
   const [activeTab, setActiveTab] = useState<'overview' | 'calls' | 'issues' | 'escalations' | 'reports'>('overview');
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
+  const [liveCalls, setLiveCalls] = useState<CallRecord[] | null>(null);
+  const [liveIssues, setLiveIssues] = useState<IssueRecord[] | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [callsLoading, setCallsLoading] = useState(false);
+  const [issuesLoading, setIssuesLoading] = useState(false);
   const { address, signIn } = useAuth();
+
+  const fetchStats = useCallback(async () => {
+    if (!address) return;
+    setStatsLoading(true);
+    try {
+      const res = await fetch('/api/admin/stats');
+      if (res.ok) setAdminStats(await res.json());
+    } catch { /* keep null — UI uses placeholders */ }
+    finally { setStatsLoading(false); }
+  }, [address]);
+
+  const fetchCalls = useCallback(async () => {
+    if (!address) return;
+    setCallsLoading(true);
+    try {
+      const res = await fetch('/api/calls?limit=20');
+      if (res.ok) {
+        const data = await res.json();
+        const mapped: CallRecord[] = (data.calls ?? []).map((c: any) => ({
+          id: c.callId ?? c._id,
+          user: c.hostAddress ? `${c.hostAddress.slice(0, 6)}...${c.hostAddress.slice(-4)}` : 'Unknown',
+          duration: formatDuration(c.duration ?? 0),
+          status: c.issueResolved ? 'resolved' : c.hasHumanDevRel ? 'escalated' : 'open',
+          topic: c.channelName ?? 'DevRel Session',
+          date: c.startTime ? timeAgo(c.startTime) : '—',
+        }));
+        setLiveCalls(mapped.length ? mapped : null);
+      }
+    } catch { setLiveCalls(null); }
+    finally { setCallsLoading(false); }
+  }, [address]);
+
+  const fetchIssues = useCallback(async () => {
+    if (!address) return;
+    setIssuesLoading(true);
+    try {
+      const res = await fetch('/api/issues?status=open&limit=20');
+      if (res.ok) {
+        const data = await res.json();
+        setLiveIssues((data.issues ?? []).length ? data.issues : null);
+      }
+    } catch { setLiveIssues(null); }
+    finally { setIssuesLoading(false); }
+  }, [address]);
+
+  useEffect(() => {
+    fetchStats();
+    fetchCalls();
+    fetchIssues();
+  }, [fetchStats, fetchCalls, fetchIssues]);
+
+  const displayCalls = liveCalls ?? MOCK_CALLS;
+  const displayIssues = liveIssues ?? MOCK_ISSUES;
 
   if (!address) {
     return (
@@ -101,16 +201,24 @@ export function AdminView() {
             className="space-y-8"
           >
             {/* Stats Grid */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-zinc-500">{adminStats ? 'Live data' : 'Showing placeholder data'}</span>
+              <button onClick={() => { fetchStats(); fetchCalls(); fetchIssues(); }} className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                <RefreshCw className={`w-3 h-3 ${statsLoading ? 'animate-spin' : ''}`} /> Refresh
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-zinc-900 border border-white/5 rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
                     <PhoneCall className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">+12%</span>
+                  <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">
+                    {adminStats ? `+${adminStats.calls.today} today` : '+12%'}
+                  </span>
                 </div>
-                <h3 className="text-zinc-400 text-sm font-medium">Total Calls (Today)</h3>
-                <p className="text-3xl font-bold mt-1">1,284</p>
+                <h3 className="text-zinc-400 text-sm font-medium">Total Calls</h3>
+                <p className="text-3xl font-bold mt-1">{adminStats ? adminStats.calls.total.toLocaleString() : '1,284'}</p>
               </div>
 
               <div className="bg-zinc-900 border border-white/5 rounded-2xl p-6">
@@ -118,21 +226,25 @@ export function AdminView() {
                   <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400">
                     <AlertCircle className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-medium text-amber-400 bg-amber-400/10 px-2 py-1 rounded-full">42 Active</span>
+                  <span className="text-xs font-medium text-amber-400 bg-amber-400/10 px-2 py-1 rounded-full">
+                    {adminStats ? `${adminStats.activeSessions} Active` : '42 Active'}
+                  </span>
                 </div>
-                <h3 className="text-zinc-400 text-sm font-medium">Open Problems</h3>
-                <p className="text-3xl font-bold mt-1">156</p>
+                <h3 className="text-zinc-400 text-sm font-medium">Open Issues</h3>
+                <p className="text-3xl font-bold mt-1">{adminStats ? adminStats.issues.open.toLocaleString() : '156'}</p>
               </div>
 
               <div className="bg-zinc-900 border border-white/5 rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-10 h-10 rounded-lg bg-rose-500/20 flex items-center justify-center text-rose-400">
-                    <ArrowRightLeft className="w-5 h-5" />
+                    <Users className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-medium text-rose-400 bg-rose-400/10 px-2 py-1 rounded-full">High</span>
+                  <span className="text-xs font-medium text-rose-400 bg-rose-400/10 px-2 py-1 rounded-full">
+                    {adminStats ? `${adminStats.users.newToday} new today` : 'High'}
+                  </span>
                 </div>
-                <h3 className="text-zinc-400 text-sm font-medium">Human Escalations</h3>
-                <p className="text-3xl font-bold mt-1">89</p>
+                <h3 className="text-zinc-400 text-sm font-medium">Total Users</h3>
+                <p className="text-3xl font-bold mt-1">{adminStats ? adminStats.users.total.toLocaleString() : '89'}</p>
               </div>
 
               <div className="bg-zinc-900 border border-white/5 rounded-2xl p-6">
@@ -140,10 +252,12 @@ export function AdminView() {
                   <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">94%</span>
+                  <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">
+                    {adminStats ? `${adminStats.issues.resolutionRate}%` : '94%'}
+                  </span>
                 </div>
                 <h3 className="text-zinc-400 text-sm font-medium">Resolution Rate</h3>
-                <p className="text-3xl font-bold mt-1">1,195</p>
+                <p className="text-3xl font-bold mt-1">{adminStats ? adminStats.issues.resolved.toLocaleString() : '1,195'}</p>
               </div>
             </div>
 
@@ -164,7 +278,9 @@ export function AdminView() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {MOCK_CALLS.map((call) => (
+                    {callsLoading ? (
+                      <tr><td colSpan={7} className="px-6 py-8 text-center text-zinc-500">Loading calls...</td></tr>
+                    ) : displayCalls.slice(0, 5).map((call) => (
                       <tr key={call.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="px-6 py-4 font-mono text-zinc-300">{call.id}</td>
                         <td className="px-6 py-4 font-medium">{call.user}</td>
@@ -227,7 +343,9 @@ export function AdminView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {MOCK_CALLS.map((call) => (
+                  {callsLoading ? (
+                    <tr><td colSpan={7} className="px-6 py-8 text-center text-zinc-500">Loading calls...</td></tr>
+                  ) : displayCalls.map((call) => (
                     <tr key={call.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-6 py-4 font-mono text-zinc-300">{call.id}</td>
                       <td className="px-6 py-4 font-medium">{call.user}</td>
@@ -270,39 +388,47 @@ export function AdminView() {
             className="space-y-6"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Open Problems</h2>
+              <h2 className="text-xl font-semibold">Open Issues</h2>
+              <button onClick={fetchIssues} className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                <RefreshCw className={`w-3 h-3 ${issuesLoading ? 'animate-spin' : ''}`} /> Refresh
+              </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { id: 'ISS-102', title: 'Paymaster Configuration Error', user: 'CryptoNinja', priority: 'High', date: '5 hours ago' },
-                { id: 'ISS-103', title: 'Smart Contract Verification Failing', user: 'DevAlice', priority: 'Medium', date: '1 day ago' },
-                { id: 'ISS-104', title: 'RPC Node Rate Limits', user: 'NodeRunner', priority: 'Low', date: '2 days ago' },
-              ].map((issue) => (
-                <div key={issue.id} className="bg-zinc-900 border border-white/5 rounded-2xl p-6 hover:bg-zinc-800/50 transition-colors">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="font-medium text-lg">{issue.title}</h3>
-                      <p className="text-sm text-zinc-400 mt-1">Reported by {issue.user} • {issue.date}</p>
+            {issuesLoading ? (
+              <div className="text-center text-zinc-500 py-12">Loading issues...</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {displayIssues.map((issue) => (
+                  <div key={issue._id} className="bg-zinc-900 border border-white/5 rounded-2xl p-6 hover:bg-zinc-800/50 transition-colors">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-mono text-xs text-zinc-500">{issue.issueId}</span>
+                        </div>
+                        <h3 className="font-medium text-lg">{issue.title}</h3>
+                        <p className="text-sm text-zinc-400 mt-1">
+                          Reported by {issue.reportedBy ? `${issue.reportedBy.slice(0, 6)}...${issue.reportedBy.slice(-4)}` : 'Unknown'} • {timeAgo(issue.createdAt)}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        issue.priority === 'critical' || issue.priority === 'high' ? 'bg-rose-500/20 text-rose-400' :
+                        issue.priority === 'medium' ? 'bg-amber-500/20 text-amber-400' :
+                        'bg-emerald-500/20 text-emerald-400'
+                      }`}>
+                        {issue.priority.charAt(0).toUpperCase() + issue.priority.slice(1)}
+                      </span>
                     </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      issue.priority === 'High' ? 'bg-rose-500/20 text-rose-400' :
-                      issue.priority === 'Medium' ? 'bg-amber-500/20 text-amber-400' :
-                      'bg-emerald-500/20 text-emerald-400'
-                    }`}>
-                      {issue.priority}
-                    </span>
+                    <div className="flex gap-2">
+                      <button className="px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-medium hover:bg-indigo-500/30 transition-colors">
+                        View Details
+                      </button>
+                      <button className="px-3 py-1.5 bg-white/5 text-zinc-300 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors">
+                        Assign to DevRel
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button className="px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-medium hover:bg-indigo-500/30 transition-colors">
-                      View Details
-                    </button>
-                    <button className="px-3 py-1.5 bg-white/5 text-zinc-300 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors">
-                      Assign to DevRel
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
 
