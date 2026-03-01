@@ -94,45 +94,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const provider = getSDK().getProvider();
 
-      // 1 — server-issued nonce (replay-safe)
+      // 1 — Connect wallet and get address via viem createWalletClient
+      const { createWalletClient, custom } = await import('viem');
+      const { base } = await import('viem/chains');
+
+      const walletClient = createWalletClient({
+        chain: base,
+        transport: custom(provider),
+      });
+
+      const [userAddress] = await walletClient.getAddresses();
+
+      // 2 — Server-issued nonce (replay-safe)
       const { nonce } = await fetch('/api/auth/nonce').then(r => r.json());
 
-      // 2 — switch to Base Mainnet (non-fatal if unsupported)
-      try {
-        await provider.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x2105' }],
-        });
-      } catch { /* ignore */ }
+      // 3 — Build SIWE message and sign it
+      const domain = typeof window !== 'undefined' ? window.location.host : 'devrelive.vercel.app';
+      const uri = typeof window !== 'undefined' ? window.location.origin : 'https://devrelive.vercel.app';
+      const message = [
+        `${domain} wants you to sign in with your Ethereum account:`,
+        userAddress,
+        '',
+        'Sign in to DevReLive',
+        '',
+        `URI: ${uri}`,
+        'Version: 1',
+        'Chain ID: 8453',
+        `Nonce: ${nonce}`,
+        `Issued At: ${new Date().toISOString()}`,
+      ].join('\n');
 
-      // 3 — wallet_connect + SIWE
-      const result = await provider.request({
-        method: 'wallet_connect',
-        params: [
-          {
-            version: '1',
-            capabilities: {
-              signInWithEthereum: {
-                nonce,
-                chainId: '0x2105', // Base Mainnet (8453)
-              },
-            },
-          },
-        ],
-      }) as {
-        accounts: {
-          address: string;
-          capabilities: {
-            signInWithEthereum: { message: string; signature: string };
-          };
-        }[];
-      };
+      const signature = await walletClient.signMessage({ account: userAddress, message });
 
-      const { accounts } = result;
-      const { address: userAddress } = accounts[0];
-      const { message, signature } = accounts[0].capabilities.signInWithEthereum;
-
-      // 4 — server-side signature verification
+      // 4 — Server-side signature verification
       const verifyRes = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(err.error ?? 'Signature verification failed');
       }
 
-      // 5 — upsert user in MongoDB — get back userId
+      // 5 — Upsert user in MongoDB — get back userId
       const userRes = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -153,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user } = await userRes.json();
       const resolvedUserId: string = user.userId;
 
-      // 6 — create wallet session
+      // 6 — Create wallet session
       let resolvedSessionId: string | null = null;
       try {
         const sessRes = await fetch('/api/sessions', {
@@ -167,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Failed to create session:', e);
       }
 
-      // 7 — persist everything to state + localStorage
+      // 7 — Persist to state + localStorage
       setAddress(userAddress);
       setUserId(resolvedUserId);
       setUserData(user);

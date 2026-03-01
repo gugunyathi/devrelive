@@ -18,7 +18,7 @@ import { SignInWithBaseButton } from '@base-org/account-ui/react';
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'discord' | 'call' | 'calendar' | 'integrations' | 'repair' | 'profile' | 'admin'>('discord');
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
-  const { address, signIn, signOut } = useAuth();
+  const { address, signIn, signOut, isLoading } = useAuth();
 
   useEffect(() => {
     sdk.actions.ready();
