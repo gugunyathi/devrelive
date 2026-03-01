@@ -7,25 +7,25 @@
   "miniapp": {
     "version": "1",
     "name": "DevReLive",
-    "homeUrl": "https://www.your-domain.com",
-    "iconUrl": "https://www.your-domain.com/icon.png",
-    "splashImageUrl": "https://www.your-domain.com/splash.png",
+    "homeUrl": "https://devrelive.vercel.app",
+    "iconUrl": "https://devrelive.vercel.app/icon.png",
+    "splashImageUrl": "https://devrelive.vercel.app/splash.png",
     "splashBackgroundColor": "#000000",
-    "webhookUrl": "https://www.your-domain.com/api/webhook",
+    "webhookUrl": "https://devrelive.vercel.app/api/webhook",
     "subtitle": "Live dev support on Base",
     "description": "A live call center for developers to get direct assistance with their builds, code, and apps on Base.",
     "screenshotUrls": [
-      "https://www.your-domain.com/screenshots/s1.png",
-      "https://www.your-domain.com/screenshots/s2.png",
-      "https://www.your-domain.com/screenshots/s3.png"
+      "https://devrelive.vercel.app/screenshots/s1.png",
+      "https://devrelive.vercel.app/screenshots/s2.png",
+      "https://devrelive.vercel.app/screenshots/s3.png"
     ],
     "primaryCategory": "developer-tools",
     "tags": ["devrel", "base", "developer", "support", "calls"],
-    "heroImageUrl": "https://www.your-domain.com/og.png",
+    "heroImageUrl": "https://devrelive.vercel.app/og.png",
     "tagline": "Call Base live support",
     "ogTitle": "DevReLive",
     "ogDescription": "A live call center for developers to get direct assistance with their builds, code, and apps on Base.",
-    "ogImageUrl": "https://www.your-domain.com/og.png",
+    "ogImageUrl": "https://devrelive.vercel.app/og.png",
     "noindex": false
   }
 }
