@@ -13,7 +13,7 @@ export function RepairView() {
     { title: 'Checking Manifest & Embed', desc: 'Validating Base Mini App configuration' },
     { title: 'App Preview Analysis', desc: 'Testing UI and interactions' },
     { title: 'Identifying Problems', desc: 'Scanning for errors and vulnerabilities' },
-    { title: 'Auto-Fixing Code', desc: 'Applying patches via OpenClaw Agent' },
+    { title: 'Auto-Fixing Code', desc: 'Applying patches via Code Repair Agent' },
     { title: 'Pushing to GitHub', desc: 'Triggering auto-deployment to production' },
     { title: 'Final Testing & Report', desc: 'Generating DevRel report' },
   ];
@@ -23,7 +23,7 @@ export function RepairView() {
     issuesFound: 3,
     issuesFixed: 3,
     status: "Ready for Production",
-    summary: "OpenClaw successfully identified and patched 3 critical issues in the Base Mini App manifest and frame routing. The application now passes all Base ecosystem requirements.",
+    summary: "Code Repair Agent successfully identified and patched 3 critical issues in the Base Mini App manifest and frame routing. The application now passes all Base ecosystem requirements.",
     details: [
       "Fixed missing 'icon' field in manifest.json",
       "Resolved CORS policy block on /api/graphql",
@@ -60,7 +60,7 @@ export function RepairView() {
               <Wrench className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">OpenClaw Repair Agent</h1>
+              <h1 className="text-2xl font-bold text-white">Code Repair Agent</h1>
               <p className="text-zinc-400 text-sm">Autonomous Coding Agent for Base Mini App Repair Services</p>
             </div>
           </div>
@@ -107,7 +107,7 @@ export function RepairView() {
                 <p className="text-sm text-indigo-300 flex items-start gap-2">
                   <ShieldCheck className="w-5 h-5 shrink-0" />
                   <span>
-                    <strong>Action Required:</strong> Please invite <code className="bg-black/30 px-1.5 py-0.5 rounded text-indigo-200">openclaw-agent</code> as a collaborator to your GitHub repository so it can push auto-fixes.
+                    <strong>Action Required:</strong> Please invite <code className="bg-black/30 px-1.5 py-0.5 rounded text-indigo-200">coderepairagent</code> as a collaborator to your GitHub repository so it can push auto-fixes.
                   </span>
                 </p>
                 <button className="mt-3 text-xs bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
@@ -342,7 +342,7 @@ export function RepairView() {
 
           {/* Resolved Issues Dashboard */}
           <div>
-            <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider mb-4">Recently Resolved by OpenClaw</h3>
+            <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider mb-4">Recently Resolved by Code Repair Agent</h3>
             <div className="space-y-3">
               {[
                 { id: 'REP-1042', app: 'SwapWidget', issue: 'Manifest missing icon field', status: 'Auto-Fixed', time: '10m ago' },

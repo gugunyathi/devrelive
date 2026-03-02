@@ -10,7 +10,7 @@ import { CalendarView } from '@/components/CalendarView';
 import { RepairView } from '@/components/RepairView';
 import { ProfileView } from '@/components/ProfileView';
 import { AdminView } from '@/components/AdminView';
-import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogOut, LockKeyhole } from 'lucide-react';
+import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogOut, LogIn, LockKeyhole } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SignInWithBaseButton } from '@base-org/account-ui/react';
@@ -18,11 +18,33 @@ import { SignInWithBaseButton } from '@base-org/account-ui/react';
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'discord' | 'call' | 'calendar' | 'integrations' | 'repair' | 'profile' | 'admin'>('discord');
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
+  const [connectedIntegrations, setConnectedIntegrations] = useState<Record<string, boolean>>({});
   const { address, signIn, signOut, isLoading } = useAuth();
+  const [isJoinedViaLink, setIsJoinedViaLink] = useState(false);
 
   useEffect(() => {
     sdk.actions.ready();
   }, []);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && address) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const callId = urlParams.get('call');
+      if (callId && !activeChannel) {
+        const { CHANNELS } = require('@/components/CallPad');
+        const channel = CHANNELS.find((c: Channel) => c.id === callId) || {
+          id: callId,
+          name: 'Shared Call',
+          icon: <Phone className="w-5 h-5" />,
+          number: 'Shared'
+        };
+        setActiveChannel(channel);
+        setActiveTab('call');
+        setIsJoinedViaLink(true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, [address, activeChannel]);
 
   const handleCall = (channel: Channel) => {
     if (!address) {
@@ -139,9 +161,9 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Sign Out (only shown when signed in) */}
-        {address && (
-          <div className="w-full px-3 pb-4">
+        {/* Auth Button */}
+        <div className="w-full px-3 pb-4">
+          {address ? (
             <button
               onClick={signOut}
               className="w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
@@ -150,8 +172,17 @@ export default function Home() {
               <LogOut className="w-5 h-5" />
               <span className="text-[10px] font-medium">Sign Out</span>
             </button>
-          </div>
-        )}
+          ) : (
+            <button
+              onClick={signIn}
+              className="w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+              title="Sign In with Base"
+            >
+              <LogIn className="w-5 h-5" />
+              <span className="text-[10px] font-medium text-center leading-tight">Sign In</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Sidebar Call Pad (Only visible on Calls tab) */}
@@ -200,7 +231,9 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              <DiscordView onStartCall={(title, context) => handleCall({ 
+              <DiscordView 
+                isTelegramConnected={connectedIntegrations['telegram'] || false}
+                onStartCall={(title, context) => handleCall({ 
                 id: 'discord-' + Date.now(), 
                 name: title.length > 20 ? title.substring(0, 20) + '...' : title, 
                 icon: <MessageSquare className="w-5 h-5" />, 
@@ -239,7 +272,7 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              {!address ? <SignInGate label="Integrations" /> : <Integrations />}
+              {!address ? <SignInGate label="Integrations" /> : <Integrations connected={connectedIntegrations} setConnected={setConnectedIntegrations} />}
             </motion.div>
           ) : activeTab === 'profile' ? (
             <motion.div
@@ -283,7 +316,7 @@ export default function Home() {
               transition={{ duration: 0.3 }}
               className="absolute inset-0"
             >
-              <ActiveCall channel={activeChannel} onEndCall={handleEndCall} />
+              <ActiveCall channel={activeChannel} onEndCall={handleEndCall} isJoinedViaLink={isJoinedViaLink} />
             </motion.div>
           ) : (
             <motion.div

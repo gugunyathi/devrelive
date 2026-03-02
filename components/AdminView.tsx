@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { Users, PhoneCall, AlertCircle, CheckCircle2, ArrowRightLeft, FileText, Search, Filter, MoreVertical, Clock, ShieldAlert, Lock, User, RefreshCw } from 'lucide-react';
+import { Users, PhoneCall, AlertCircle, CheckCircle2, ArrowRightLeft, FileText, Search, Filter, MoreVertical, Clock, ShieldAlert, Lock, User, RefreshCw, DollarSign, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface CallRecord {
@@ -43,6 +43,35 @@ const MOCK_ISSUES: IssueRecord[] = [
   { _id: '3', issueId: 'ISS-104', title: 'RPC Node Rate Limits', reportedBy: '0xNodeRunner', priority: 'low', status: 'open', createdAt: new Date(Date.now() - 2 * 86400000).toISOString() },
 ];
 
+const COST_POSTS = [
+  { id: '1', title: 'App data displayed incorrectly in "Pinned apps"', content: 'Launching mini app issue with icon, name and URL', replies: 7, hasImage: true, resolved: false },
+  { id: '2', title: 'is the "mini app" concept still supported by base app?', content: 'question about mini app removal', replies: 3, hasImage: false, resolved: true },
+  { id: '3', title: 'base.dev - something went wrong', content: 'error registering apps on base.dev', replies: 5, hasImage: false, resolved: false },
+  { id: '4', title: 'PathDB geth snapshot?', content: 'pathdb snapshot for geth available question', replies: 4, hasImage: false, resolved: true },
+  { id: '5', title: 'Can\'t sign into base.dev with my wallet', content: 'No signers found error on login', replies: 8, hasImage: false, resolved: false },
+  { id: '6', title: 'Link to game won\'t open - verification error', content: 'Verification timeout issue', replies: 6, hasImage: true, resolved: false },
+  { id: '7', title: 'How to Get OBN Token Listed As An AppCoin', content: 'AppCoin listing question', replies: 3, hasImage: false, resolved: false },
+  { id: '8', title: 'Proof of ownership doesn\'t work', content: 'Proof of ownership issue', replies: 5, hasImage: true, resolved: false },
+  { id: 'tg1', title: 'Smart contract deployment failing with out of gas', content: 'ERC20 deploy gas error', replies: 2, hasImage: false, resolved: false, source: 'telegram' as const },
+  { id: 'tg2', title: 'How to verify contract on Basescan?', content: 'Hardhat verification failing', replies: 4, hasImage: false, resolved: true, source: 'telegram' as const },
+];
+
+const GLOBAL_UNIT_COST_PER_MINUTE = 2.50;
+const BASE_TICKET_COST = 10.00;
+
+const INITIAL_COST_DATA = COST_POSTS.map(post => {
+  const estimatedCallMins = (post.replies * 5) + Math.floor(post.content.length / 50) + (post.hasImage ? 15 : 0);
+  const estimatedTimeToResolve = `${post.replies * 3 + (post.resolved ? 0 : 24)} hours`;
+  return {
+    id: post.id,
+    title: post.title,
+    timeToResolve: estimatedTimeToResolve,
+    callDurationMins: estimatedCallMins,
+    status: post.resolved ? 'resolved' : 'open',
+    source: (post as any).source,
+  };
+});
+
 function formatDuration(seconds: number): string {
   if (!seconds) return '0:00';
   const m = Math.floor(seconds / 60);
@@ -62,10 +91,11 @@ function timeAgo(dateStr: string): string {
 }
 
 export function AdminView() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'calls' | 'issues' | 'escalations' | 'reports'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'calls' | 'issues' | 'escalations' | 'reports' | 'costs'>('overview');
   const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
   const [liveCalls, setLiveCalls] = useState<CallRecord[] | null>(null);
   const [liveIssues, setLiveIssues] = useState<IssueRecord[] | null>(null);
+  const [costData, setCostData] = useState(INITIAL_COST_DATA);
   const [statsLoading, setStatsLoading] = useState(false);
   const [callsLoading, setCallsLoading] = useState(false);
   const [issuesLoading, setIssuesLoading] = useState(false);
@@ -121,6 +151,20 @@ export function AdminView() {
     fetchIssues();
   }, [fetchStats, fetchCalls, fetchIssues]);
 
+  // Real-time cost calculation for open problems
+  useEffect(() => {
+    if (activeTab !== 'costs') return;
+    const interval = setInterval(() => {
+      setCostData(prev => prev.map(item => {
+        if (item.status === 'open') {
+          return { ...item, callDurationMins: item.callDurationMins + (1 / 60) };
+        }
+        return item;
+      }));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeTab]);
+
   const displayCalls = liveCalls ?? MOCK_CALLS;
   const displayIssues = liveIssues ?? MOCK_ISSUES;
 
@@ -169,13 +213,14 @@ export function AdminView() {
       </div>
 
       {/* Navigation */}
-      <div className="flex-none px-8 py-4 border-b border-white/5 flex gap-6">
+      <div className="flex-none px-8 py-4 border-b border-white/5 flex gap-6 overflow-x-auto custom-scrollbar">
         {[
           { id: 'overview', label: 'Overview', icon: FileText },
           { id: 'calls', label: 'Call History', icon: PhoneCall },
           { id: 'issues', label: 'Open Issues', icon: AlertCircle },
           { id: 'escalations', label: 'Escalations', icon: ArrowRightLeft },
           { id: 'reports', label: 'Reports', icon: FileText },
+          { id: 'costs', label: 'Costs', icon: DollarSign },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -502,6 +547,79 @@ export function AdminView() {
                   </div>
                 </div>
               ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Costs Tab */}
+        {activeTab === 'costs' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">Resolution Costs</h2>
+                <p className="text-sm text-zinc-400 mt-1">Estimated costs based on a global call center unit cost of ${GLOBAL_UNIT_COST_PER_MINUTE.toFixed(2)}/min + ${BASE_TICKET_COST.toFixed(2)} base ticket cost.</p>
+              </div>
+              <div className="bg-zinc-900 border border-white/10 rounded-lg px-4 py-3 flex items-center gap-4 shrink-0">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Total Estimated Cost</p>
+                  <p className="text-2xl font-bold text-white">
+                    ${costData.reduce((acc, curr) => acc + BASE_TICKET_COST + (curr.callDurationMins * GLOBAL_UNIT_COST_PER_MINUTE), 0).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-zinc-900 border border-white/5 rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left text-sm min-w-[800px]">
+                  <thead className="bg-zinc-950/50 text-zinc-400 border-b border-white/5">
+                    <tr>
+                      <th className="px-6 py-4 font-medium">Problem / Thread</th>
+                      <th className="px-6 py-4 font-medium">Status</th>
+                      <th className="px-6 py-4 font-medium">Time to Resolve</th>
+                      <th className="px-6 py-4 font-medium">Call Time</th>
+                      <th className="px-6 py-4 font-medium text-right">Estimated Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {costData.map((item) => {
+                      const cost = BASE_TICKET_COST + (item.callDurationMins * GLOBAL_UNIT_COST_PER_MINUTE);
+                      return (
+                        <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="px-6 py-4 font-medium text-zinc-200 max-w-md truncate" title={item.title}>
+                            <div className="flex items-center gap-2">
+                              {item.source === 'telegram' && (
+                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#229ED9]/10 text-[#229ED9]" title="Telegram">
+                                  <MessageCircle className="w-3 h-3" />
+                                </span>
+                              )}
+                              <span className="truncate">{item.title}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                              item.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                            }`}>
+                              {item.status === 'resolved' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3 animate-pulse" />}
+                              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-zinc-400">{item.timeToResolve}</td>
+                          <td className="px-6 py-4 text-zinc-400 font-mono">{item.callDurationMins.toFixed(2)} mins</td>
+                          <td className="px-6 py-4 text-right font-mono text-emerald-400 font-medium">${cost.toFixed(4)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </motion.div>
         )}

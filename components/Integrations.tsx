@@ -12,8 +12,7 @@ const INTEGRATIONS = [
   { id: 'reddit', name: 'Reddit', icon: <MessageSquare className="w-6 h-6" />, description: 'Monitor subreddits and community feedback.', color: 'bg-[#FF4500]' },
 ];
 
-export function Integrations() {
-  const [connected, setConnected] = useState<Record<string, boolean>>({});
+export function Integrations({ connected, setConnected }: { connected: Record<string, boolean>, setConnected: React.Dispatch<React.SetStateAction<Record<string, boolean>>> }) {
   const [connecting, setConnecting] = useState<string | null>(null);
 
   const handleConnect = (id: string) => {

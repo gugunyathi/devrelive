@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { PhoneOff, MonitorUp, MonitorOff, Mic, MicOff, Video, VideoOff, Send, Link as LinkIcon, UserPlus, Users, LogOut } from 'lucide-react';
+import { PhoneOff, MonitorUp, MonitorOff, Mic, MicOff, Video, VideoOff, Send, Link, Users, LogOut } from 'lucide-react';
 import { useGeminiLive } from '@/hooks/use-gemini-live';
 import { Channel } from './CallPad';
+
 import { useAuth } from '@/contexts/AuthContext';
 
 function useRingbackTone(isConnecting: boolean) {
@@ -62,32 +63,61 @@ function useRingbackTone(isConnecting: boolean) {
 interface ActiveCallProps {
   channel: Channel;
   onEndCall: () => void;
-  isHost?: boolean;
+  isJoinedViaLink?: boolean;
 }
 
-export function ActiveCall({ channel, onEndCall, isHost = true }: ActiveCallProps) {
-  const { isConnected, isConnecting, error, transcript, connect, disconnect, sendScreenFrame, sendTextMessage } = useGeminiLive(channel.name, channel.context);
+export function ActiveCall({ channel, onEndCall, isJoinedViaLink }: ActiveCallProps) {
   const { address, userId } = useAuth();
-
+  const { isConnected, isConnecting, error, transcript, connect, disconnect, sendScreenFrame, sendTextMessage } = useGeminiLive(channel.name, channel.context);
+  
   useRingbackTone(isConnecting);
 
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(false);
   const [chatInput, setChatInput] = useState('');
-  const [showInviteCopied, setShowInviteCopied] = useState(false);
-  const [hasHumanDevRel, setHasHumanDevRel] = useState(false);
-  const [participants, setParticipants] = useState<{ id: string; name: string; role: 'host' | 'devrel' | 'guest' }[]>([
-    { id: address ?? '1', name: 'You', role: 'host' },
-  ]);
-
-  const callStartTime = useRef<Date>(new Date());
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
   const screenVideoRef = useRef<HTMLVideoElement>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+
+  const callStartTime = useRef<Date>(new Date());
+
+  const [participants, setParticipants] = useState([
+    { id: 'ai', name: 'DevRel Assistant', role: 'AI', avatar: 'AI' }
+  ]);
+  const [isRequestingHuman, setIsRequestingHuman] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const hasHumanDevRel = participants.some(p => p.role === 'Human');
+
+  const requestHumanDevRel = () => {
+    setIsRequestingHuman(true);
+    sendTextMessage('I need a human DevRel to join this call.');
+    setTimeout(() => {
+      setParticipants(prev => [...prev, { id: 'human-1', name: 'Alex (DevRel)', role: 'Human', avatar: 'A' }]);
+      setIsRequestingHuman(false);
+    }, 3000);
+  };
+
+  const shareLink = () => {
+    navigator.clipboard.writeText(window.location.href + '?call=' + channel.id);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+    
+    // Simulate a team member joining after sharing link
+    setTimeout(() => {
+      setParticipants(prev => {
+        if (prev.find(p => p.id === 'team-1')) return prev;
+        return [...prev, { id: 'team-1', name: 'Jamie (Frontend)', role: 'Team', avatar: 'J' }];
+      });
+    }, 5000);
+  };
 
   const stopScreenShare = () => {
     if (screenStreamRef.current) {
@@ -109,8 +139,35 @@ export function ActiveCall({ channel, onEndCall, isHost = true }: ActiveCallProp
     return () => {
       disconnect();
       stopScreenShare();
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+      }
     };
   }, [connect, disconnect]);
+
+  useEffect(() => {
+    if (isVideoOn) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          localStreamRef.current = stream;
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = stream;
+          }
+        })
+        .catch(err => {
+          console.error('Failed to get local video:', err);
+          setIsVideoOn(false);
+        });
+    } else {
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+        localStreamRef.current = null;
+      }
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+    }
+  }, [isVideoOn]);
 
   const startScreenShare = async () => {
     try {
@@ -181,83 +238,19 @@ export function ActiveCall({ channel, onEndCall, isHost = true }: ActiveCallProp
 
   useEffect(() => {
     if (transcriptEndRef.current) {
-      transcriptEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      // Small timeout ensures DOM layout is fully updated before scrolling
+      setTimeout(() => {
+        transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
     }
   }, [transcript]);
-
-  const copyInviteLink = () => {
-    const inviteLink = `${window.location.origin}/join/${channel.id}`;
-    navigator.clipboard.writeText(inviteLink);
-    setShowInviteCopied(true);
-    setTimeout(() => setShowInviteCopied(false), 2000);
-  };
-
-  const requestHumanDevRel = () => {
-    // Pings a signaling server / DevRel queue in production
-    sendTextMessage('I need a human DevRel to join this call.');
-    setHasHumanDevRel(true);
-    // Simulate a DevRel joining after a few seconds
-    setTimeout(() => {
-      setParticipants(prev => [...prev, { id: 'devrel-1', name: 'Jesse (Base DevRel)', role: 'devrel' }]);
-    }, 3000);
-  };
-
-  const endCallWithHistory = async () => {
-    const endTime = new Date();
-    const durationSeconds = Math.round((endTime.getTime() - callStartTime.current.getTime()) / 1000);
-
-    if (transcript.length > 0) {
-      // Persist locally as fallback
-      const savedCalls = JSON.parse(localStorage.getItem('devrelive_calls') || '[]');
-      const localEntry = {
-        id: Date.now().toString(),
-        channelName: channel.name,
-        date: callStartTime.current.toISOString(),
-        duration: durationSeconds,
-        hasHumanDevRel,
-        transcript,
-      };
-      savedCalls.push(localEntry);
-      localStorage.setItem('devrelive_calls', JSON.stringify(savedCalls));
-
-      // Persist to MongoDB with full metadata
-      try {
-        await fetch('/api/calls', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            channelName: channel.name,
-            topic: channel.context ?? channel.name,
-            hostAddress: address ?? 'anonymous',
-            hostUserId: userId ?? undefined,
-            participants: participants.map(p => ({
-              address: p.id.startsWith('0x') ? p.id : undefined,
-              role: p.role,
-            })),
-            startTime: callStartTime.current.toISOString(),
-            endTime: endTime.toISOString(),
-            duration: durationSeconds,
-            hasHumanDevRel,
-            transcript: transcript.map(t => ({
-              role: t.role,
-              text: t.text,
-              timestamp: new Date(),
-            })),
-          }),
-        });
-      } catch (err) {
-        console.error('Failed to save call to DB:', err);
-      }
-    }
-    onEndCall();
-  };
 
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 h-full relative">
       <canvas ref={canvasRef} className="hidden" />
       
       {/* Header */}
-      <div className="p-6 border-b border-white/10 flex items-center justify-between bg-zinc-900/50">
+      <div className="p-6 border-b border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-zinc-900/50">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
             {channel.icon}
@@ -279,29 +272,22 @@ export function ActiveCall({ channel, onEndCall, isHost = true }: ActiveCallProp
             </div>
           </div>
         </div>
-        
-        {/* Top-right Actions */}
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <button
-              onClick={copyInviteLink}
-              className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-sm font-medium text-white rounded-lg transition-colors border border-white/5"
-            >
-              <LinkIcon className="w-4 h-4" />
-              Invite Team
-            </button>
-            {showInviteCopied && (
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-1 bg-emerald-500 text-white text-xs font-medium rounded shadow-lg whitespace-nowrap z-50">
-                Link copied!
-              </div>
-            )}
-          </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <button
+            onClick={shareLink}
+            className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+          >
+            <Link className="w-4 h-4" />
+            {copiedLink ? 'Copied!' : 'Share Link'}
+          </button>
           <button
             onClick={requestHumanDevRel}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-sm font-medium text-white rounded-lg transition-colors"
+            disabled={isRequestingHuman || participants.some(p => p.role === 'Human')}
+            className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
           >
-            <UserPlus className="w-4 h-4" />
-            Request Human DevRel
+            <Users className="w-4 h-4" />
+            {isRequestingHuman ? 'Requesting...' : 'Request Human'}
           </button>
         </div>
       </div>
@@ -325,48 +311,56 @@ export function ActiveCall({ channel, onEndCall, isHost = true }: ActiveCallProp
             </div>
           )}
           
-          {/* AI Avatar Overlay */}
-          <div className="absolute top-6 right-6 w-48 h-64 bg-zinc-950 rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col">
-            <div className="flex-1 flex items-center justify-center bg-indigo-500/10 relative">
-              {isConnected && (
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className="absolute inset-0 bg-indigo-500/20 rounded-full blur-2xl m-8"
+          {/* Participants Overlay */}
+          <div className="absolute top-6 right-6 flex flex-col gap-4 max-h-[calc(100%-3rem)] overflow-y-auto custom-scrollbar pr-2">
+            {/* Local Participant */}
+            <div className="w-40 h-28 sm:w-48 sm:h-32 bg-zinc-950 rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col shrink-0 relative">
+              {isVideoOn ? (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover absolute inset-0"
                 />
-              )}
-              <div className="w-20 h-20 rounded-full bg-indigo-500 flex items-center justify-center text-white shadow-lg relative z-10">
-                <span className="text-3xl font-bold">AI</span>
-              </div>
-            </div>
-            <div className="p-3 bg-zinc-900 border-t border-white/10 text-center">
-              <div className="text-sm font-medium text-white">DevRel Assistant</div>
-              <div className="text-xs text-zinc-500">Base AI Support</div>
-            </div>
-          </div>
-
-          {/* Grid of other participants */}
-          {participants.filter(p => p.id !== '1').length > 0 && (
-            <div className="absolute left-6 top-6 flex flex-col gap-4">
-              {participants.filter(p => p.id !== '1').map((p) => (
-                <div key={p.id} className="w-48 h-32 bg-zinc-950 rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col">
-                  <div className="flex-1 flex items-center justify-center bg-zinc-800">
-                    <div className="w-12 h-12 rounded-full bg-zinc-700 flex items-center justify-center text-white font-medium">
-                      {p.name.charAt(0)}
-                    </div>
-                  </div>
-                  <div className="p-2 bg-zinc-900 border-t border-white/10 text-center truncate">
-                    <div className="text-xs font-medium text-white truncate px-2">{p.name}</div>
-                    <div className="text-[10px] text-zinc-500 capitalize">{p.role}</div>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-zinc-800 flex items-center justify-center text-white shadow-lg">
+                    <span className="text-lg sm:text-xl font-bold">Me</span>
                   </div>
                 </div>
-              ))}
+              )}
+              <div className="absolute bottom-0 inset-x-0 p-1.5 sm:p-2 bg-zinc-950/90 backdrop-blur-sm border-t border-white/10 text-center z-10">
+                <div className="text-xs font-medium text-white truncate">You</div>
+                <div className="text-[10px] text-zinc-500">Local</div>
+              </div>
             </div>
-          )}
+
+            {participants.map(p => (
+              <div key={p.id} className="w-40 h-28 sm:w-48 sm:h-32 bg-zinc-950 rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col shrink-0">
+                <div className="flex-1 flex items-center justify-center bg-zinc-900 relative">
+                  {p.id === 'ai' && isConnected && (
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ repeat: Infinity, duration: 2 }}
+                      className="absolute inset-0 bg-indigo-500/20 rounded-full blur-2xl m-6"
+                    />
+                  )}
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white shadow-lg relative z-10 ${p.role === 'AI' ? 'bg-indigo-500' : p.role === 'Human' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
+                    <span className="text-lg sm:text-xl font-bold">{p.avatar}</span>
+                  </div>
+                </div>
+                <div className="p-1.5 sm:p-2 bg-zinc-950 border-t border-white/10 text-center">
+                  <div className="text-xs font-medium text-white truncate">{p.name}</div>
+                  <div className="text-[10px] text-zinc-500">{p.role === 'AI' ? 'Base Support' : p.role}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Transcript Sidebar */}
-        <div className="w-80 bg-zinc-900 rounded-2xl border border-white/10 flex flex-col overflow-hidden">
+        <div className="w-full lg:w-80 bg-zinc-900 rounded-2xl border border-white/10 flex flex-col overflow-hidden shrink-0 h-64 lg:h-auto">
           <div className="p-4 border-b border-white/10 bg-zinc-900/50">
             <h3 className="font-medium text-white">Live Transcript</h3>
           </div>
@@ -415,51 +409,102 @@ export function ActiveCall({ channel, onEndCall, isHost = true }: ActiveCallProp
       </div>
 
       {/* Controls */}
-      <div className="p-6 border-t border-white/10 bg-zinc-900/50 flex items-center justify-center gap-4">
+      <div className="p-4 sm:p-6 border-t border-white/10 bg-zinc-900/50 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
         <button
           onClick={() => setIsMuted(!isMuted)}
-          className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
+          className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-colors ${
             isMuted ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-zinc-800 text-white hover:bg-zinc-700'
           }`}
         >
-          {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+          {isMuted ? <MicOff className="w-5 h-5 sm:w-6 sm:h-6" /> : <Mic className="w-5 h-5 sm:w-6 sm:h-6" />}
         </button>
         
         <button
           onClick={() => setIsVideoOn(!isVideoOn)}
-          className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
+          className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-colors ${
             !isVideoOn ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-zinc-800 text-white hover:bg-zinc-700'
           }`}
         >
-          {!isVideoOn ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+          {!isVideoOn ? <VideoOff className="w-5 h-5 sm:w-6 sm:h-6" /> : <Video className="w-5 h-5 sm:w-6 sm:h-6" />}
         </button>
 
         <button
           onClick={toggleScreenShare}
-          className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
+          className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-colors ${
             isScreenSharing ? 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30' : 'bg-zinc-800 text-white hover:bg-zinc-700'
           }`}
         >
-          {isScreenSharing ? <MonitorOff className="w-6 h-6" /> : <MonitorUp className="w-6 h-6" />}
+          {isScreenSharing ? <MonitorOff className="w-5 h-5 sm:w-6 sm:h-6" /> : <MonitorUp className="w-5 h-5 sm:w-6 sm:h-6" />}
         </button>
 
-        <div className="w-px h-8 bg-white/10 mx-2" />
+        <div className="w-px h-8 bg-white/10 mx-1 sm:mx-2 hidden sm:block" />
 
-        {isHost ? (
+        <button
+          onClick={() => {
+            // Just leave the call without saving transcript or ending for others
+            onEndCall();
+          }}
+          className="px-4 sm:px-6 h-12 sm:h-14 rounded-full bg-zinc-800 hover:bg-zinc-700 text-white font-medium flex items-center gap-2 transition-colors text-sm sm:text-base"
+        >
+          <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+          Leave
+        </button>
+
+        {!isJoinedViaLink && (
           <button
-            onClick={endCallWithHistory}
-            className="px-8 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-2 transition-colors"
+            onClick={async () => {
+              const endTime = new Date();
+              const durationSeconds = Math.round((endTime.getTime() - callStartTime.current.getTime()) / 1000);
+
+              if (transcript.length > 0) {
+                // Persist locally as fallback
+                const savedCalls = JSON.parse(localStorage.getItem('devrelive_calls') || '[]');
+                savedCalls.push({
+                  id: Date.now().toString(),
+                  channelName: channel.name,
+                  date: callStartTime.current.toISOString(),
+                  duration: durationSeconds,
+                  hasHumanDevRel,
+                  transcript,
+                });
+                localStorage.setItem('devrelive_calls', JSON.stringify(savedCalls));
+
+                // Persist to MongoDB with full metadata
+                try {
+                  await fetch('/api/calls', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      channelName: channel.name,
+                      topic: channel.context ?? channel.name,
+                      hostAddress: address ?? 'anonymous',
+                      hostUserId: userId ?? undefined,
+                      participants: participants.map(p => ({
+                        address: p.id.startsWith('0x') ? p.id : undefined,
+                        role: p.role === 'AI' ? 'devrel' : p.role === 'Human' ? 'devrel' : p.role === 'Team' ? 'guest' : 'host',
+                      })),
+                      startTime: callStartTime.current.toISOString(),
+                      endTime: endTime.toISOString(),
+                      duration: durationSeconds,
+                      hasHumanDevRel,
+                      transcript: transcript.map(t => ({
+                        role: t.role,
+                        text: t.text,
+                        timestamp: new Date(),
+                      })),
+                    }),
+                  });
+                } catch (err) {
+                  console.error('Failed to save call to DB:', err);
+                }
+              }
+              onEndCall();
+            }}
+            className="px-4 sm:px-6 h-12 sm:h-14 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-2 transition-colors text-sm sm:text-base"
           >
-            <PhoneOff className="w-5 h-5" />
-            End Call
-          </button>
-        ) : (
-          <button
-            onClick={onEndCall}
-            className="px-8 h-14 rounded-full bg-zinc-800 hover:bg-zinc-700 text-white font-medium flex items-center gap-2 transition-colors border border-white/10"
-          >
-            <LogOut className="w-5 h-5 text-red-400" />
-            Leave Call
+            <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">End Call for All</span>
+            <span className="sm:hidden">End</span>
           </button>
         )}
       </div>
