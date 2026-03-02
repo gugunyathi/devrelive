@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { Hash, Search, ChevronDown, BellOff, Users, MessageSquare, Plus, MoreHorizontal, Menu, X, Phone, Calendar, Clock, CheckCircle2, Send, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -71,6 +71,85 @@ export function DiscordView({ onStartCall, isTelegramConnected = false }: Discor
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isScheduled, setIsScheduled] = useState(false);
 
+  // Fetch posts and replies from API on mount, fallback to mock data
+  const fetchPosts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/forum/posts?limit=50');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.posts && data.posts.length > 0) {
+          // Map API response to component format
+          setPosts(data.posts.map((p: Record<string, unknown>) => ({
+            id: p.postId as string,
+            channelId: (p.channelId as string) || 'developer-forum',
+            title: p.title as string,
+            content: p.content as string,
+            author: p.author as string,
+            replies: (p.replyCount as number) || 0,
+            time: p.createdAt ? new Date(p.createdAt as string).toLocaleString() : 'Unknown',
+            tags: (p.tags as string[]) || [],
+            hasImage: (p.hasImage as boolean) || false,
+            imageUrl: p.imageUrl as string | undefined,
+            resolved: (p.resolved as boolean) || false,
+            source: p.source as string | undefined,
+          })));
+        }
+      }
+    } catch {
+      // Fallback to INITIAL_POSTS (already set as default state)
+    }
+  }, []);
+
+  const fetchReplies = useCallback(async () => {
+    try {
+      // Fetch all replies — in production this would be per-post
+      const postIds = posts.map(p => p.id);
+      const allReplies: Array<Record<string, unknown>> = [];
+      for (const pid of postIds.slice(0, 12)) {
+        const res = await fetch(`/api/forum/posts/${pid}/replies`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.replies) allReplies.push(...data.replies);
+        }
+      }
+      if (allReplies.length > 0) {
+        setReplies(allReplies.map((r: Record<string, unknown>) => ({
+          id: r.replyId as string,
+          postId: r.postId as string,
+          author: r.author as string,
+          role: (r.role as string) || 'user',
+          time: r.createdAt ? new Date(r.createdAt as string).toLocaleString() : 'Unknown',
+          content: r.content as string,
+          hasImage: (r.hasImage as boolean) || false,
+          imageUrl: r.imageUrl as string | undefined,
+        })));
+      }
+    } catch {
+      // Fallback to MOCK_REPLIES
+    }
+  }, [posts]);
+
+  useEffect(() => {
+    // Seed forum data then fetch
+    const init = async () => {
+      try {
+        await fetch('/api/forum/seed', { method: 'POST' });
+      } catch { /* ignore seed errors */ }
+      await fetchPosts();
+    };
+    init();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch replies after posts are loaded from API
+  const postsLoadedRef = useRef(false);
+  useEffect(() => {
+    if (posts.length > 0 && posts[0].id !== '1' && !postsLoadedRef.current) {
+      // Posts were loaded from API (not mock data)
+      postsLoadedRef.current = true;
+      fetchReplies();
+    }
+  }, [posts, fetchReplies]);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string | null>>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -96,19 +175,20 @@ export function DiscordView({ onStartCall, isTelegramConnected = false }: Discor
     }
   };
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
     if (!address) {
       signIn();
       return;
     }
     if (!newPostTitle.trim()) return;
 
+    const authorName = address.substring(0, 6) + '...';
     const newPost = {
       id: `post-${Date.now()}`,
       channelId: activeChannel,
       title: newPostTitle,
       content: newPostContent,
-      author: address.substring(0, 6) + '...',
+      author: authorName,
       replies: 0,
       time: "Just now",
       tags: [],
@@ -122,19 +202,46 @@ export function DiscordView({ onStartCall, isTelegramConnected = false }: Discor
     setNewPostContent('');
     setNewPostImage(null);
     setIsCreatingPost(false);
+
+    // Persist to API
+    try {
+      const res = await fetch('/api/forum/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newPost.title,
+          content: newPost.content,
+          author: authorName,
+          authorAddress: address,
+          channelId: activeChannel,
+          tags: [],
+          hasImage: newPost.hasImage,
+          imageUrl: newPost.imageUrl,
+          source: 'web',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Update the local post with the real ID from the API
+        setPosts(prev => prev.map(p => p.id === newPost.id ? { ...p, id: data.post.postId } : p));
+      }
+    } catch {
+      // Post already added to local state as optimistic update
+    }
   };
 
-  const handleCreateReply = (postId: string) => {
+  const handleCreateReply = async (postId: string) => {
     if (!address) {
       signIn();
       return;
     }
     if (!replyContent.trim() && !replyImage) return;
 
+    const authorName = address.substring(0, 6) + '...';
     const newReply = {
       id: `reply-${Date.now()}`,
       postId: postId,
-      author: address.substring(0, 6) + '...',
+      author: authorName,
       role: 'user',
       time: 'Just now',
       content: replyContent,
@@ -146,10 +253,41 @@ export function DiscordView({ onStartCall, isTelegramConnected = false }: Discor
     setPosts(posts.map(p => p.id === postId ? { ...p, replies: p.replies + 1 } : p));
     setReplyContent('');
     setReplyImage(null);
+
+    // Persist to API
+    try {
+      await fetch(`/api/forum/posts/${postId}/replies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          author: authorName,
+          authorAddress: address,
+          role: 'user',
+          content: newReply.content,
+          hasImage: newReply.hasImage,
+          imageUrl: newReply.imageUrl,
+        }),
+      });
+    } catch {
+      // Reply already added optimistically
+    }
   };
 
-  const handleToggleResolve = (postId: string) => {
-    setPosts(posts.map(p => p.id === postId ? { ...p, resolved: !p.resolved } : p));
+  const handleToggleResolve = async (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    const newResolved = !post?.resolved;
+    setPosts(posts.map(p => p.id === postId ? { ...p, resolved: newResolved } : p));
+
+    // Persist to API
+    try {
+      await fetch(`/api/forum/posts/${postId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resolved: newResolved }),
+      });
+    } catch {
+      // Optimistic update already applied
+    }
   };
 
   const getChannelClass = (id: string, isForum: boolean = false) => {

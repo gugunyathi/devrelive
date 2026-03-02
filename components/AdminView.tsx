@@ -145,11 +145,35 @@ export function AdminView() {
     finally { setIssuesLoading(false); }
   }, [address]);
 
+  const fetchCosts = useCallback(async () => {
+    try {
+      // Seed cost data first
+      await fetch('/api/costs/seed', { method: 'POST' });
+      const res = await fetch('/api/costs?limit=50');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.records && data.records.length > 0) {
+          setCostData(data.records.map((r: Record<string, unknown>) => ({
+            id: r.costId as string,
+            title: r.title as string,
+            timeToResolve: (r.timeToResolve as string) || 'N/A',
+            callDurationMins: (r.callDurationMins as number) || 0,
+            status: (r.status as string) || 'open',
+            source: r.source as string | undefined,
+          })));
+        }
+      }
+    } catch {
+      // Keep initial cost data as fallback
+    }
+  }, []);
+
   useEffect(() => {
     fetchStats();
     fetchCalls();
     fetchIssues();
-  }, [fetchStats, fetchCalls, fetchIssues]);
+    fetchCosts();
+  }, [fetchStats, fetchCalls, fetchIssues, fetchCosts]);
 
   // Real-time cost calculation for open problems
   useEffect(() => {

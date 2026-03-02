@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Github, Slack, Twitter, MessageCircle, MessageSquare, Link as LinkIcon, CheckCircle2, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const INTEGRATIONS = [
   { id: 'discord', name: 'Discord', icon: <MessageSquare className="w-6 h-6" />, description: 'Connect to Base Discord servers and channels.', color: 'bg-[#5865F2]' },
@@ -13,19 +14,61 @@ const INTEGRATIONS = [
 ];
 
 export function Integrations({ connected, setConnected }: { connected: Record<string, boolean>, setConnected: React.Dispatch<React.SetStateAction<Record<string, boolean>>> }) {
+  const { address } = useAuth();
   const [connecting, setConnecting] = useState<string | null>(null);
 
-  const handleConnect = (id: string) => {
+  // Load persisted integration state from API on mount
+  useEffect(() => {
+    if (!address) return;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/integrations?address=${address}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.connected && Object.keys(data.connected).length > 0) {
+            setConnected(prev => ({ ...prev, ...data.connected }));
+          }
+        }
+      } catch {
+        // Use local state as fallback
+      }
+    };
+    load();
+  }, [address, setConnected]);
+
+  const handleConnect = async (id: string) => {
+    const isConnecting = !connected[id];
+
     if (connected[id]) {
       setConnected(prev => ({ ...prev, [id]: false }));
+      // Persist disconnect
+      if (address) {
+        try {
+          await fetch('/api/integrations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address, integrationId: id, connected: false }),
+          });
+        } catch { /* ignore */ }
+      }
       return;
     }
 
     setConnecting(id);
     // Simulate OAuth delay
-    setTimeout(() => {
+    setTimeout(async () => {
       setConnected(prev => ({ ...prev, [id]: true }));
       setConnecting(null);
+      // Persist connect
+      if (address) {
+        try {
+          await fetch('/api/integrations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address, integrationId: id, connected: true }),
+          });
+        } catch { /* ignore */ }
+      }
     }, 1500);
   };
 
