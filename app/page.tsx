@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { sdk } from '@farcaster/miniapp-sdk';
+import React, { useState } from 'react';
 import { CallPad, Channel } from '@/components/CallPad';
 import { ActiveCall } from '@/components/ActiveCall';
 import { Integrations } from '@/components/Integrations';
@@ -10,55 +9,55 @@ import { CalendarView } from '@/components/CalendarView';
 import { RepairView } from '@/components/RepairView';
 import { ProfileView } from '@/components/ProfileView';
 import { AdminView } from '@/components/AdminView';
-import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogOut, LockKeyhole } from 'lucide-react';
+import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogIn, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '@/contexts/AuthContext';
-import { SignInWithBaseButton } from '@base-org/account-ui/react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'discord' | 'call' | 'calendar' | 'integrations' | 'repair' | 'profile' | 'admin'>('discord');
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
-  const { address, signIn, signOut, isLoading } = useAuth();
+  const [connectedIntegrations, setConnectedIntegrations] = useState<Record<string, boolean>>({});
+  const { address, signIn, signOut } = useAuth();
+  const [isJoinedViaLink, setIsJoinedViaLink] = useState(false);
 
-  useEffect(() => {
-    sdk.actions.ready();
-  }, []);
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && address) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const callId = urlParams.get('call');
+      if (callId && !activeChannel) {
+        // Find channel or create a mock one for the shared link
+        const { CHANNELS } = require('@/components/CallPad');
+        const channel = CHANNELS.find((c: Channel) => c.id === callId) || {
+          id: callId,
+          name: 'Shared Call',
+          icon: <Phone className="w-5 h-5" />,
+          number: 'Shared'
+        };
+        setActiveChannel(channel);
+        setActiveTab('call');
+        setIsJoinedViaLink(true);
+        
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, [address, activeChannel]);
 
   const handleCall = (channel: Channel) => {
     if (!address) {
-      // Redirect to sign-in gate — user will see the lock screen on the calls tab
-      setActiveTab('call');
+      alert("Please sign in with Base to make calls.");
       return;
     }
     setActiveChannel(channel);
     setActiveTab('call');
   };
 
-  // Reusable sign-in gate for locked sections
-  const SignInGate = ({ label }: { label: string }) => (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-zinc-950">
-      <div className="p-4 bg-zinc-900 rounded-full">
-        <LockKeyhole className="w-10 h-10 text-zinc-500" />
-      </div>
-      <div className="text-center">
-        <h3 className="text-lg font-semibold text-white mb-1">Sign in to access {label}</h3>
-        <p className="text-zinc-400 text-sm">Connect your Base account to unlock this feature.</p>
-      </div>
-      <SignInWithBaseButton
-        align="center"
-        variant="solid"
-        colorScheme="dark"
-        onClick={signIn}
-      />
-    </div>
-  );
-
   const handleEndCall = () => {
     setActiveChannel(null);
   };
 
   return (
-    <main className="flex h-screen w-full bg-black text-white overflow-hidden font-sans" suppressHydrationWarning>
+    <main className="flex h-screen w-full bg-black text-white overflow-hidden font-sans">
       {/* Leftmost Navigation */}
       <div className="w-20 bg-zinc-950 border-r border-white/10 flex flex-col items-center py-6 gap-8 z-20">
         <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -139,9 +138,9 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Sign Out (only shown when signed in) */}
-        {address && (
-          <div className="w-full px-3 pb-4">
+        {/* Auth Button */}
+        <div className="w-full px-3 pb-4">
+          {address ? (
             <button
               onClick={signOut}
               className="w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
@@ -150,8 +149,17 @@ export default function Home() {
               <LogOut className="w-5 h-5" />
               <span className="text-[10px] font-medium">Sign Out</span>
             </button>
-          </div>
-        )}
+          ) : (
+            <button
+              onClick={signIn}
+              className="w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+              title="Sign In with Base"
+            >
+              <LogIn className="w-5 h-5" />
+              <span className="text-[10px] font-medium text-center leading-tight">Sign In<br/>Base</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Sidebar Call Pad (Only visible on Calls tab) */}
@@ -160,36 +168,7 @@ export default function Home() {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-zinc-950">
-
-        {/* Top Header Bar */}
-        <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-white/5 bg-zinc-950 z-10">
-          <span className="text-sm font-medium text-zinc-500 tracking-wide">DevReLive</span>
-          <div className="flex items-center gap-3">
-            {address ? (
-              <>
-                <span className="text-xs font-mono text-zinc-400 bg-zinc-900 px-3 py-1.5 rounded-lg border border-white/5">
-                  {address.slice(0, 6)}…{address.slice(-4)}
-                </span>
-                <button
-                  onClick={signOut}
-                  className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-zinc-800"
-                >
-                  Sign out
-                </button>
-              </>
-            ) : (
-              <SignInWithBaseButton
-                align="center"
-                variant="solid"
-                colorScheme="dark"
-                onClick={signIn}
-              />
-            )}
-          </div>
-        </div>
-
-        <div className="flex-1 relative">
+      <div className="flex-1 relative bg-zinc-950">
         <AnimatePresence mode="wait">
           {activeTab === 'discord' ? (
             <motion.div
@@ -200,7 +179,9 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              <DiscordView onStartCall={(title, context) => handleCall({ 
+              <DiscordView 
+                isTelegramConnected={connectedIntegrations['telegram'] || false}
+                onStartCall={(title, context) => handleCall({ 
                 id: 'discord-' + Date.now(), 
                 name: title.length > 20 ? title.substring(0, 20) + '...' : title, 
                 icon: <MessageSquare className="w-5 h-5" />, 
@@ -228,7 +209,7 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              {!address ? <SignInGate label="Calendar" /> : <CalendarView />}
+              <CalendarView />
             </motion.div>
           ) : activeTab === 'integrations' ? (
             <motion.div
@@ -239,7 +220,7 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              {!address ? <SignInGate label="Integrations" /> : <Integrations />}
+              <Integrations connected={connectedIntegrations} setConnected={setConnectedIntegrations} />
             </motion.div>
           ) : activeTab === 'profile' ? (
             <motion.div
@@ -250,7 +231,7 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              {!address ? <SignInGate label="Profile" /> : <ProfileView />}
+              <ProfileView />
             </motion.div>
           ) : activeTab === 'admin' ? (
             <motion.div
@@ -261,18 +242,7 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              {!address ? <SignInGate label="Admin" /> : <AdminView />}
-            </motion.div>
-          ) : activeTab === 'call' && !address ? (
-            <motion.div
-              key="call-gate"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0"
-            >
-              <SignInGate label="Calls" />
+              <AdminView />
             </motion.div>
           ) : activeChannel ? (
             <motion.div
@@ -283,7 +253,7 @@ export default function Home() {
               transition={{ duration: 0.3 }}
               className="absolute inset-0"
             >
-              <ActiveCall channel={activeChannel} onEndCall={handleEndCall} />
+              <ActiveCall channel={activeChannel} onEndCall={handleEndCall} isJoinedViaLink={isJoinedViaLink} />
             </motion.div>
           ) : (
             <motion.div
@@ -347,7 +317,6 @@ export default function Home() {
             </motion.div>
           )}
         </AnimatePresence>
-        </div>
       </div>
     </main>
   );

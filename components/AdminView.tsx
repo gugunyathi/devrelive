@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Users, PhoneCall, AlertCircle, CheckCircle2, ArrowRightLeft, FileText, Search, Filter, MoreVertical, Clock, ShieldAlert, Lock, User, RefreshCw } from 'lucide-react';
+import { Users, PhoneCall, AlertCircle, CheckCircle2, ArrowRightLeft, FileText, Search, Filter, MoreVertical, Clock, ShieldAlert, Lock, User, DollarSign, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface CallRecord {
@@ -12,23 +12,6 @@ interface CallRecord {
   date: string;
 }
 
-interface AdminStats {
-  users: { total: number; newToday: number };
-  calls: { total: number; today: number; totalDuration: number; avgDuration: number };
-  issues: { total: number; open: number; resolved: number; resolutionRate: number };
-  activeSessions: number;
-}
-
-interface IssueRecord {
-  _id: string;
-  issueId: string;
-  title: string;
-  reportedBy: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: string;
-  createdAt: string;
-}
-
 const MOCK_CALLS: CallRecord[] = [
   { id: 'CAL-001', user: '0xAlex', duration: '14:23', status: 'resolved', topic: 'Smart Contract Deployment', date: '2 mins ago' },
   { id: 'CAL-002', user: 'SarahDev', duration: '45:10', status: 'escalated', topic: 'Account Abstraction Gas Issue', date: '1 hour ago' },
@@ -37,92 +20,60 @@ const MOCK_CALLS: CallRecord[] = [
   { id: 'CAL-005', user: 'Web3Wizard', duration: '12:30', status: 'resolved', topic: 'Base Node Sync', date: '1 day ago' },
 ];
 
-const MOCK_ISSUES: IssueRecord[] = [
-  { _id: '1', issueId: 'ISS-102', title: 'Paymaster Configuration Error', reportedBy: '0xCryptoNinja', priority: 'high', status: 'open', createdAt: new Date(Date.now() - 5 * 3600000).toISOString() },
-  { _id: '2', issueId: 'ISS-103', title: 'Smart Contract Verification Failing', reportedBy: '0xDevAlice', priority: 'medium', status: 'open', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { _id: '3', issueId: 'ISS-104', title: 'RPC Node Rate Limits', reportedBy: '0xNodeRunner', priority: 'low', status: 'open', createdAt: new Date(Date.now() - 2 * 86400000).toISOString() },
+const INITIAL_POSTS = [
+  { id: '1', channelId: 'developer-forum', title: 'App data displayed incorrectly in "Pinned apps"', content: 'I\'m launching my mini app "Squadletics" on Base app but I encountered an issue that I can\'t figure out how to solve. I think maybe there\'s some kind of a bug on the Base app side, or maybe I\'m doing something wrong. So Squadletics now can be found among "Apps" in the search. In search results, it displays the correct icon, name and tagline. And when I click it, it opens etc. But then when I pin it to "My apps", in "My apps" list it displays no icon, name is incorrect and it leads to the wrong URL (leads to <squadletics dot com> when it\'s clearly set in the manifest that homeUrl is <squadletics dot com /baseapp> Do you know why it might be happening? On Farcaster it\'s being displayed correctly and leads to the correct URL etc.', author: 'Linas | true.eth', replies: 7, time: '1/23/26, 7:18 PM', tags: ['Mini Apps', 'Bug Report'], hasImage: true, resolved: false },
+  { id: '2', channelId: 'developer-forum', title: 'is the "mini app" concept still supported by base app?', content: 'now that farcaster is going away, is the mini app going to be removed from base app?', author: 'vDan', replies: 3, time: '2/19/26, 6:26 AM', tags: ['Mini Apps', 'Question'], hasImage: false, resolved: true },
+  { id: '3', channelId: 'developer-forum', title: 'base.dev - something went wrong', content: 'looking for info regarding an error registering apps on base.dev', author: 'kieran', replies: 5, time: '2/22/26, 7:05 PM', tags: ['Bug Report'], hasImage: false, resolved: false },
+  { id: '4', channelId: 'developer-forum', title: 'PathDB geth snapshot?', content: 'Hello everyone, I\'d like to know if there\'s a pathdb snapshot for geth available. The one at https://docs.base.org/base-chain/node-operators/snapshots is hashdb', author: 'Lolmode', replies: 4, time: '2/23/26, 7:59 PM', tags: ['Node'], hasImage: false, resolved: true },
+  { id: '5', channelId: 'developer-forum', title: 'Can\'t sign into base.dev with my wallet', content: 'After I keyed in my passphrase to log in into base.dev I\'m receiving the following error: {\n"message": "No signers found",\n"stack": "Error: No signers found\\n at wL..."}', author: 'cell', replies: 8, time: '2/27/26, 6:17 AM', tags: ['Base Account', 'Bug Report'], hasImage: false, resolved: false },
+  { id: '6', channelId: 'developer-forum', title: 'Why won\'t my link to the game open? I get this error message.Please wait while we verify your identi', content: 'I\'m having trouble with my application on base.dev. When I try to access the link, it throws an error and asks me to verify my identity, but the verification process never completes.\n\nHas anyone else experienced this issue recently? Here are my logs:\n\nError: Verification timeout at 30000ms\nat Object.verifyIdentity (/app/src/auth.ts:42:15)\nat processTicksAndRejections (node:internal/process/task_queues:95:5)', author: 'Ruslan S.', replies: 6, time: '2/25/26, 10:57 PM', tags: ['Mini Apps'], hasImage: true, resolved: false },
+  { id: '7', channelId: 'developer-forum', title: 'How to Get OBN Token Listed As An AppCoin is Base App', content: 'Recently, Base App added a new feature where coins can be labeled as AppCoins and the application associated with the coin can be displayed on the coin’s page. I was wondering if you could help get the Olive Branch Network listed as an AppCoin with its app displayed on the coin’s page? I asked about this in my group with the Base NA team and was asked to post the question in this forum.', author: 'jack2163', replies: 3, time: '2/27/26, 9:28 PM', tags: ['Question'], hasImage: false, resolved: false },
+  { id: '8', channelId: 'developer-forum', title: 'Proof of ownership doesn\'t work', content: 'Proof of ownership doesn\'t work, although everything seems to be correct', author: 'TokoGaz', replies: 5, time: '2/27/26, 11:06 PM', tags: ['Bug Report'], hasImage: true, resolved: false },
+  { id: '9', channelId: 'developer-forum', title: 'Shipped my first dApp on Base — Shitcoin Graveyard (NFT tombstones for dead tokens)', content: 'Hey builders! Just deployed my first project on Base and wanted to share. Shitcoin Graveyard — a dApp where users bury their dead ERC-20 tokens and receive an animated on-chain SVG tombstone NFT. How it works:\n● Connect wallet → auto-scans for your tokens\n● Pick a dead token, write a custom epitaph\n● Token gets locked in the contract forever\n● You receive an animated NFT tombstone (flickering candles, twinkling stars, floating particles)\nTech stack:\n● Solidity (ERC-721 + SafeERC20)\n● Next.js 14 + TypeScript\n● RainbowKit + Wagmi v2\n● Tailwind CSS + Framer Motion', author: 'bezdar`?', replies: 4, time: 'Yesterday at 3:59 PM', tags: ['Discussion'], hasImage: false, resolved: false },
+  { id: '10', channelId: 'developer-forum', title: 'base.dev something went wrong message, no matter what I try', content: 'I tried everything I know', author: 'Kurogane (黒鋼)', replies: 7, time: 'Yesterday at 10:10 PM', tags: ['Bug Report'], hasImage: true, resolved: false },
+  { id: 'tg1', channelId: 'developer-forum', title: 'Smart contract deployment failing with out of gas', content: 'Hey everyone, I am trying to deploy a new ERC20 contract but it keeps failing with out of gas error. I have increased the gas limit but it still fails. Any ideas?', author: 'CryptoDev_TG', replies: 2, time: 'Today at 9:15 AM', tags: ['Smart Contracts', 'Bug Report'], hasImage: false, resolved: false, source: 'telegram' },
+  { id: 'tg2', channelId: 'developer-forum', title: 'How to verify contract on Basescan?', content: 'I deployed my contract but having trouble verifying it on Basescan using Hardhat. The API key seems correct but it says "Failed to verify".', author: 'Web3Builder_TG', replies: 4, time: 'Today at 10:30 AM', tags: ['Tooling', 'Question'], hasImage: false, resolved: true, source: 'telegram' },
 ];
 
-function formatDuration(seconds: number): string {
-  if (!seconds) return '0:00';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
+const GLOBAL_UNIT_COST_PER_MINUTE = 2.50;
+const BASE_TICKET_COST = 10.00;
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} min${mins > 1 ? 's' : ''} ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days} day${days > 1 ? 's' : ''} ago`;
-}
+const INITIAL_COST_DATA = INITIAL_POSTS.map(post => {
+  // Estimate cost based on interaction: replies, content length, and images
+  const estimatedCallMins = (post.replies * 5) + Math.floor(post.content.length / 50) + (post.hasImage ? 15 : 0);
+  const estimatedTimeToResolve = `${post.replies * 3 + (post.resolved ? 0 : 24)} hours`;
+  
+  return {
+    id: post.id,
+    title: post.title,
+    timeToResolve: estimatedTimeToResolve,
+    callDurationMins: estimatedCallMins,
+    status: post.resolved ? 'resolved' : 'open',
+    source: (post as any).source
+  };
+});
 
 export function AdminView() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'calls' | 'issues' | 'escalations' | 'reports'>('overview');
-  const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
-  const [liveCalls, setLiveCalls] = useState<CallRecord[] | null>(null);
-  const [liveIssues, setLiveIssues] = useState<IssueRecord[] | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [callsLoading, setCallsLoading] = useState(false);
-  const [issuesLoading, setIssuesLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'calls' | 'issues' | 'escalations' | 'reports' | 'costs'>('overview');
+  const [costData, setCostData] = useState(INITIAL_COST_DATA);
   const { address, signIn } = useAuth();
 
-  const fetchStats = useCallback(async () => {
-    if (!address) return;
-    setStatsLoading(true);
-    try {
-      const res = await fetch('/api/admin/stats');
-      if (res.ok) setAdminStats(await res.json());
-    } catch { /* keep null — UI uses placeholders */ }
-    finally { setStatsLoading(false); }
-  }, [address]);
-
-  const fetchCalls = useCallback(async () => {
-    if (!address) return;
-    setCallsLoading(true);
-    try {
-      const res = await fetch('/api/calls?limit=20');
-      if (res.ok) {
-        const data = await res.json();
-        const mapped: CallRecord[] = (data.calls ?? []).map((c: any) => ({
-          id: c.callId ?? c._id,
-          user: c.hostAddress ? `${c.hostAddress.slice(0, 6)}...${c.hostAddress.slice(-4)}` : 'Unknown',
-          duration: formatDuration(c.duration ?? 0),
-          status: c.issueResolved ? 'resolved' : c.hasHumanDevRel ? 'escalated' : 'open',
-          topic: c.channelName ?? 'DevRel Session',
-          date: c.startTime ? timeAgo(c.startTime) : '—',
-        }));
-        setLiveCalls(mapped.length ? mapped : null);
-      }
-    } catch { setLiveCalls(null); }
-    finally { setCallsLoading(false); }
-  }, [address]);
-
-  const fetchIssues = useCallback(async () => {
-    if (!address) return;
-    setIssuesLoading(true);
-    try {
-      const res = await fetch('/api/issues?status=open&limit=20');
-      if (res.ok) {
-        const data = await res.json();
-        setLiveIssues((data.issues ?? []).length ? data.issues : null);
-      }
-    } catch { setLiveIssues(null); }
-    finally { setIssuesLoading(false); }
-  }, [address]);
-
+  // Real-time cost calculation for open problems
   useEffect(() => {
-    fetchStats();
-    fetchCalls();
-    fetchIssues();
-  }, [fetchStats, fetchCalls, fetchIssues]);
-
-  const displayCalls = liveCalls ?? MOCK_CALLS;
-  const displayIssues = liveIssues ?? MOCK_ISSUES;
+    if (activeTab !== 'costs') return;
+    
+    const interval = setInterval(() => {
+      setCostData(prev => prev.map(item => {
+        if (item.status === 'open') {
+          // Increment call duration by 1 second (1/60th of a minute) to simulate active running costs
+          return { ...item, callDurationMins: item.callDurationMins + (1 / 60) };
+        }
+        return item;
+      }));
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [activeTab]);
 
   if (!address) {
     return (
@@ -169,13 +120,14 @@ export function AdminView() {
       </div>
 
       {/* Navigation */}
-      <div className="flex-none px-8 py-4 border-b border-white/5 flex gap-6">
+      <div className="flex-none px-8 py-4 border-b border-white/5 flex gap-6 overflow-x-auto custom-scrollbar">
         {[
           { id: 'overview', label: 'Overview', icon: FileText },
           { id: 'calls', label: 'Call History', icon: PhoneCall },
           { id: 'issues', label: 'Open Issues', icon: AlertCircle },
           { id: 'escalations', label: 'Escalations', icon: ArrowRightLeft },
           { id: 'reports', label: 'Reports', icon: FileText },
+          { id: 'costs', label: 'Costs', icon: DollarSign },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -201,24 +153,16 @@ export function AdminView() {
             className="space-y-8"
           >
             {/* Stats Grid */}
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-zinc-500">{adminStats ? 'Live data' : 'Showing placeholder data'}</span>
-              <button onClick={() => { fetchStats(); fetchCalls(); fetchIssues(); }} className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                <RefreshCw className={`w-3 h-3 ${statsLoading ? 'animate-spin' : ''}`} /> Refresh
-              </button>
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-zinc-900 border border-white/5 rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
                     <PhoneCall className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">
-                    {adminStats ? `+${adminStats.calls.today} today` : '+12%'}
-                  </span>
+                  <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">+12%</span>
                 </div>
-                <h3 className="text-zinc-400 text-sm font-medium">Total Calls</h3>
-                <p className="text-3xl font-bold mt-1">{adminStats ? adminStats.calls.total.toLocaleString() : '1,284'}</p>
+                <h3 className="text-zinc-400 text-sm font-medium">Total Calls (Today)</h3>
+                <p className="text-3xl font-bold mt-1">1,284</p>
               </div>
 
               <div className="bg-zinc-900 border border-white/5 rounded-2xl p-6">
@@ -226,25 +170,21 @@ export function AdminView() {
                   <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400">
                     <AlertCircle className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-medium text-amber-400 bg-amber-400/10 px-2 py-1 rounded-full">
-                    {adminStats ? `${adminStats.activeSessions} Active` : '42 Active'}
-                  </span>
+                  <span className="text-xs font-medium text-amber-400 bg-amber-400/10 px-2 py-1 rounded-full">42 Active</span>
                 </div>
-                <h3 className="text-zinc-400 text-sm font-medium">Open Issues</h3>
-                <p className="text-3xl font-bold mt-1">{adminStats ? adminStats.issues.open.toLocaleString() : '156'}</p>
+                <h3 className="text-zinc-400 text-sm font-medium">Open Problems</h3>
+                <p className="text-3xl font-bold mt-1">156</p>
               </div>
 
               <div className="bg-zinc-900 border border-white/5 rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-10 h-10 rounded-lg bg-rose-500/20 flex items-center justify-center text-rose-400">
-                    <Users className="w-5 h-5" />
+                    <ArrowRightLeft className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-medium text-rose-400 bg-rose-400/10 px-2 py-1 rounded-full">
-                    {adminStats ? `${adminStats.users.newToday} new today` : 'High'}
-                  </span>
+                  <span className="text-xs font-medium text-rose-400 bg-rose-400/10 px-2 py-1 rounded-full">High</span>
                 </div>
-                <h3 className="text-zinc-400 text-sm font-medium">Total Users</h3>
-                <p className="text-3xl font-bold mt-1">{adminStats ? adminStats.users.total.toLocaleString() : '89'}</p>
+                <h3 className="text-zinc-400 text-sm font-medium">Human Escalations</h3>
+                <p className="text-3xl font-bold mt-1">89</p>
               </div>
 
               <div className="bg-zinc-900 border border-white/5 rounded-2xl p-6">
@@ -252,12 +192,10 @@ export function AdminView() {
                   <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">
-                    {adminStats ? `${adminStats.issues.resolutionRate}%` : '94%'}
-                  </span>
+                  <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">94%</span>
                 </div>
                 <h3 className="text-zinc-400 text-sm font-medium">Resolution Rate</h3>
-                <p className="text-3xl font-bold mt-1">{adminStats ? adminStats.issues.resolved.toLocaleString() : '1,195'}</p>
+                <p className="text-3xl font-bold mt-1">1,195</p>
               </div>
             </div>
 
@@ -278,9 +216,7 @@ export function AdminView() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {callsLoading ? (
-                      <tr><td colSpan={7} className="px-6 py-8 text-center text-zinc-500">Loading calls...</td></tr>
-                    ) : displayCalls.slice(0, 5).map((call) => (
+                    {MOCK_CALLS.map((call) => (
                       <tr key={call.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="px-6 py-4 font-mono text-zinc-300">{call.id}</td>
                         <td className="px-6 py-4 font-medium">{call.user}</td>
@@ -343,9 +279,7 @@ export function AdminView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {callsLoading ? (
-                    <tr><td colSpan={7} className="px-6 py-8 text-center text-zinc-500">Loading calls...</td></tr>
-                  ) : displayCalls.map((call) => (
+                  {MOCK_CALLS.map((call) => (
                     <tr key={call.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-6 py-4 font-mono text-zinc-300">{call.id}</td>
                       <td className="px-6 py-4 font-medium">{call.user}</td>
@@ -388,47 +322,39 @@ export function AdminView() {
             className="space-y-6"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Open Issues</h2>
-              <button onClick={fetchIssues} className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                <RefreshCw className={`w-3 h-3 ${issuesLoading ? 'animate-spin' : ''}`} /> Refresh
-              </button>
+              <h2 className="text-xl font-semibold">Open Problems</h2>
             </div>
-            {issuesLoading ? (
-              <div className="text-center text-zinc-500 py-12">Loading issues...</div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {displayIssues.map((issue) => (
-                  <div key={issue._id} className="bg-zinc-900 border border-white/5 rounded-2xl p-6 hover:bg-zinc-800/50 transition-colors">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-xs text-zinc-500">{issue.issueId}</span>
-                        </div>
-                        <h3 className="font-medium text-lg">{issue.title}</h3>
-                        <p className="text-sm text-zinc-400 mt-1">
-                          Reported by {issue.reportedBy ? `${issue.reportedBy.slice(0, 6)}...${issue.reportedBy.slice(-4)}` : 'Unknown'} • {timeAgo(issue.createdAt)}
-                        </p>
-                      </div>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        issue.priority === 'critical' || issue.priority === 'high' ? 'bg-rose-500/20 text-rose-400' :
-                        issue.priority === 'medium' ? 'bg-amber-500/20 text-amber-400' :
-                        'bg-emerald-500/20 text-emerald-400'
-                      }`}>
-                        {issue.priority.charAt(0).toUpperCase() + issue.priority.slice(1)}
-                      </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { id: 'ISS-102', title: 'Paymaster Configuration Error', user: 'CryptoNinja', priority: 'High', date: '5 hours ago' },
+                { id: 'ISS-103', title: 'Smart Contract Verification Failing', user: 'DevAlice', priority: 'Medium', date: '1 day ago' },
+                { id: 'ISS-104', title: 'RPC Node Rate Limits', user: 'NodeRunner', priority: 'Low', date: '2 days ago' },
+              ].map((issue) => (
+                <div key={issue.id} className="bg-zinc-900 border border-white/5 rounded-2xl p-6 hover:bg-zinc-800/50 transition-colors">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="font-medium text-lg">{issue.title}</h3>
+                      <p className="text-sm text-zinc-400 mt-1">Reported by {issue.user} • {issue.date}</p>
                     </div>
-                    <div className="flex gap-2">
-                      <button className="px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-medium hover:bg-indigo-500/30 transition-colors">
-                        View Details
-                      </button>
-                      <button className="px-3 py-1.5 bg-white/5 text-zinc-300 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors">
-                        Assign to DevRel
-                      </button>
-                    </div>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      issue.priority === 'High' ? 'bg-rose-500/20 text-rose-400' :
+                      issue.priority === 'Medium' ? 'bg-amber-500/20 text-amber-400' :
+                      'bg-emerald-500/20 text-emerald-400'
+                    }`}>
+                      {issue.priority}
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="flex gap-2">
+                    <button className="px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-medium hover:bg-indigo-500/30 transition-colors">
+                      View Details
+                    </button>
+                    <button className="px-3 py-1.5 bg-white/5 text-zinc-300 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors">
+                      Assign to DevRel
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </motion.div>
         )}
 
@@ -502,6 +428,79 @@ export function AdminView() {
                   </div>
                 </div>
               ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Costs Tab */}
+        {activeTab === 'costs' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">Resolution Costs</h2>
+                <p className="text-sm text-zinc-400 mt-1">Estimated costs based on a global call center unit cost of ${GLOBAL_UNIT_COST_PER_MINUTE.toFixed(2)}/min + ${BASE_TICKET_COST.toFixed(2)} base ticket cost.</p>
+              </div>
+              <div className="bg-zinc-900 border border-white/10 rounded-lg px-4 py-3 flex items-center gap-4 shrink-0">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Total Estimated Cost</p>
+                  <p className="text-2xl font-bold text-white">
+                    ${costData.reduce((acc, curr) => acc + BASE_TICKET_COST + (curr.callDurationMins * GLOBAL_UNIT_COST_PER_MINUTE), 0).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-zinc-900 border border-white/5 rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left text-sm min-w-[800px]">
+                  <thead className="bg-zinc-950/50 text-zinc-400 border-b border-white/5">
+                    <tr>
+                      <th className="px-6 py-4 font-medium">Problem / Thread</th>
+                      <th className="px-6 py-4 font-medium">Status</th>
+                      <th className="px-6 py-4 font-medium">Time to Resolve</th>
+                      <th className="px-6 py-4 font-medium">Call Time</th>
+                      <th className="px-6 py-4 font-medium text-right">Estimated Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {costData.map((item) => {
+                      const cost = BASE_TICKET_COST + (item.callDurationMins * GLOBAL_UNIT_COST_PER_MINUTE);
+                      return (
+                        <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="px-6 py-4 font-medium text-zinc-200 max-w-md truncate" title={item.title}>
+                            <div className="flex items-center gap-2">
+                              {item.source === 'telegram' && (
+                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#229ED9]/10 text-[#229ED9]" title="Telegram">
+                                  <MessageCircle className="w-3 h-3" />
+                                </span>
+                              )}
+                              <span className="truncate">{item.title}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                              item.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                            }`}>
+                              {item.status === 'resolved' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3 animate-pulse" />}
+                              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-zinc-400">{item.timeToResolve}</td>
+                          <td className="px-6 py-4 text-zinc-400 font-mono">{item.callDurationMins.toFixed(2)} mins</td>
+                          <td className="px-6 py-4 text-right font-mono text-emerald-400 font-medium">${cost.toFixed(4)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </motion.div>
         )}
