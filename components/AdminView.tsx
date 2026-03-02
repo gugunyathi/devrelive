@@ -106,7 +106,23 @@ export function AdminView() {
     setStatsLoading(true);
     try {
       const res = await fetch('/api/admin/stats');
-      if (res.ok) setAdminStats(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        const s = data.stats ?? {};
+        // Map flat API response to the AdminStats interface shape
+        const mapped: AdminStats = {
+          users: { total: s.totalUsers ?? 0, newToday: 0 },
+          calls: { total: s.totalCalls ?? 0, today: 0, totalDuration: 0, avgDuration: 0 },
+          issues: {
+            total: (s.openIssues ?? 0) + (s.escalatedIssues ?? 0) + (s.resolvedToday ?? 0),
+            open: s.openIssues ?? 0,
+            resolved: s.resolvedToday ?? 0,
+            resolutionRate: s.forum?.resolutionRate ?? 0,
+          },
+          activeSessions: s.activeSessions ?? 0,
+        };
+        setAdminStats(mapped);
+      }
     } catch { /* keep null — UI uses placeholders */ }
     finally { setStatsLoading(false); }
   }, [address]);
