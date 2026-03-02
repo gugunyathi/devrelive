@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { nonces } from '@/lib/nonce-store';
+import dbConnect from '@/lib/mongodb';
+import Nonce from '@/models/Nonce';
 
 export async function GET() {
+  await dbConnect();
   const nonce = crypto.randomBytes(16).toString('hex');
-  nonces.add(nonce);
+  await Nonce.create({ nonce });
   return NextResponse.json({ nonce });
 }

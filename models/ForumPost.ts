@@ -24,7 +24,6 @@ const ForumPostSchema = new mongoose.Schema(
 );
 
 ForumPostSchema.index({ channelId: 1, createdAt: -1 });
-ForumPostSchema.index({ postId: 1 });
 ForumPostSchema.index({ authorAddress: 1 });
 ForumPostSchema.index({ resolved: 1 });
 ForumPostSchema.index({ source: 1 });

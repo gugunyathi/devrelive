@@ -19,7 +19,6 @@ const ForumReplySchema = new mongoose.Schema(
 );
 
 ForumReplySchema.index({ postId: 1, createdAt: 1 });
-ForumReplySchema.index({ replyId: 1 });
 ForumReplySchema.index({ authorAddress: 1 });
 
 export interface IForumReply {
