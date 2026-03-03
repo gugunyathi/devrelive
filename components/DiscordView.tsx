@@ -401,7 +401,7 @@ export function DiscordView({ onStartCall, isTelegramConnected = false }: Discor
       </div>
 
       {/* Main Forum Area */}
-      <div className={`flex-1 flex-col min-w-0 bg-[#313338] ${selectedPost ? 'hidden lg:flex' : 'flex'}`}>
+      <div className={`flex-1 flex-col min-w-0 bg-[#313338] ${selectedPost ? 'hidden' : 'flex'}`}>
         {/* Header */}
         <div className="h-12 flex items-center px-4 border-b border-[#1E1F22] shadow-sm shrink-0">
           <button 
@@ -618,7 +618,7 @@ export function DiscordView({ onStartCall, isTelegramConnected = false }: Discor
 
       {/* Right Panel (Issue Details) */}
       {selectedPost && (
-        <div className="w-full lg:w-[400px] bg-[#313338] border-l border-[#1E1F22] flex flex-col flex-shrink-0 shadow-2xl z-10 absolute inset-0 lg:static">
+        <div className="flex-1 min-w-0 bg-[#313338] border-l border-[#1E1F22] flex flex-col">
           <div className="h-12 flex items-center justify-between px-4 border-b border-[#1E1F22] shrink-0 bg-[#313338]">
             <div className="flex items-center gap-2 overflow-hidden">
               <button 
