@@ -29,7 +29,7 @@ export function CallPad({ onCall, activeChannelId }: CallPadProps) {
   const { address } = useAuth();
 
   return (
-    <div className="w-80 bg-zinc-950 border-r border-white/10 h-full flex flex-col">
+    <div className="w-full bg-zinc-950 border-r border-white/10 h-full flex flex-col">
       <div className="p-6 border-b border-white/10">
         <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
           <Code className="w-6 h-6 text-indigo-500" />

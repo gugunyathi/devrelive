@@ -51,10 +51,10 @@ export function RepairView() {
   };
 
   return (
-    <div className="flex h-full w-full bg-zinc-950 text-white overflow-hidden">
+    <div className="flex flex-col md:flex-row h-full w-full bg-zinc-950 text-white overflow-hidden">
       {/* Left Panel - Input & Process */}
-      <div className="w-1/2 flex flex-col border-r border-white/10 overflow-y-auto">
-        <div className="p-8 border-b border-white/10 bg-zinc-900/50">
+      <div className="w-full md:w-1/2 flex flex-col border-b md:border-b-0 md:border-r border-white/10 overflow-y-auto">
+        <div className="p-4 sm:p-8 border-b border-white/10 bg-zinc-900/50">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
               <Wrench className="w-6 h-6" />
@@ -66,9 +66,9 @@ export function RepairView() {
           </div>
         </div>
 
-        <div className="p-8 space-y-8">
+        <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
           {/* Input Form */}
-          <div className="space-y-6 bg-zinc-900/50 p-6 rounded-2xl border border-white/5">
+          <div className="space-y-4 sm:space-y-6 bg-zinc-900/50 p-4 sm:p-6 rounded-2xl border border-white/5">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Play className="w-5 h-5 text-indigo-400" />
               Start New Repair
@@ -217,8 +217,8 @@ export function RepairView() {
       </div>
 
       {/* Right Panel - Dashboard & DevRel Tools */}
-      <div className="w-1/2 flex flex-col bg-zinc-950 overflow-y-auto">
-        <div className="p-8 border-b border-white/10 flex justify-between items-center bg-zinc-900/30">
+      <div className="w-full md:w-1/2 flex flex-col bg-zinc-950 overflow-y-auto">
+        <div className="p-4 sm:p-8 border-b border-white/10 flex justify-between items-center bg-zinc-900/30">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Activity className="w-5 h-5 text-emerald-400" />
             DevRel Dashboard
@@ -231,7 +231,7 @@ export function RepairView() {
           </div>
         </div>
 
-        <div className="p-8 space-y-8">
+        <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
           {/* Top Report Summary in Dashboard */}
           {isRepairFinished && (
             <motion.div

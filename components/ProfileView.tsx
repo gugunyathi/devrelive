@@ -119,14 +119,14 @@ export function ProfileView() {
   return (
     <div className="h-full flex flex-col bg-zinc-950 text-white overflow-hidden">
       {/* Header */}
-      <div className="p-8 border-b border-white/10 bg-zinc-900/30 flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-6">
-          <div className="w-20 h-20 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
-            <User className="w-10 h-10 text-indigo-400" />
+      <div className="p-4 sm:p-8 border-b border-white/10 bg-zinc-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4 sm:gap-6">
+          <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+            <User className="w-7 h-7 sm:w-10 sm:h-10 text-indigo-400" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">
+              <h1 className="text-xl sm:text-3xl font-bold tracking-tight">
                 {userData?.username ?? 'Developer Profile'}
               </h1>
               {userData?.isAdmin && (
@@ -165,7 +165,7 @@ export function ProfileView() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-8">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-8">
         {!address ? (
           <div className="max-w-md mx-auto mt-20 text-center p-8 rounded-2xl bg-zinc-900/50 border border-white/5">
             <User className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
