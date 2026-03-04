@@ -26,6 +26,18 @@ export default function Home() {
     sdk.actions.ready();
   }, []);
 
+  // Handle ?tab=repair deep link (used by GitHub OAuth callback redirect)
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab');
+      if (tab === 'repair') {
+        setActiveTab('repair');
+        // Don't clean URL here — RepairView reads github_connected param on its mount
+      }
+    }
+  }, []);
+
   React.useEffect(() => {
     if (typeof window !== 'undefined' && address) {
       const urlParams = new URLSearchParams(window.location.search);
