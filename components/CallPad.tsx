@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Hash, Code, Server, User, Box, Bot, MessageSquare, Lock } from 'lucide-react';
+import { Phone, Hash, Code, Server, User, Box, Bot, MessageSquare, Lock, Wrench } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -22,10 +22,11 @@ export const CHANNELS: Channel[] = [
 
 interface CallPadProps {
   onCall: (channel: Channel) => void;
+  onRepair?: () => void;
   activeChannelId?: string;
 }
 
-export function CallPad({ onCall, activeChannelId }: CallPadProps) {
+export function CallPad({ onCall, onRepair, activeChannelId }: CallPadProps) {
   const { address } = useAuth();
 
   return (
@@ -45,45 +46,57 @@ export function CallPad({ onCall, activeChannelId }: CallPadProps) {
           const isActive = activeChannelId === channel.id;
           const isDisabled = !address;
           return (
-            <motion.button
-              whileHover={{ scale: isDisabled ? 1 : 1.02 }}
-              whileTap={{ scale: isDisabled ? 1 : 0.98 }}
-              key={channel.id}
-              onClick={() => !isDisabled && onCall(channel)}
-              disabled={isDisabled}
-              className={`w-full flex items-center justify-between p-4 rounded-xl border transition-colors ${
-                isActive
-                  ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-400'
-                  : isDisabled
-                    ? 'bg-zinc-900/50 border-white/5 opacity-50 cursor-not-allowed text-zinc-500'
-                    : 'bg-zinc-900 border-white/5 text-zinc-300 hover:bg-zinc-800 hover:border-white/10'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`p-2 rounded-lg ${
-                    isActive ? 'bg-indigo-500/20' : isDisabled ? 'bg-zinc-800/50' : 'bg-zinc-800'
-                  }`}
-                >
-                  {isDisabled ? <Lock className="w-5 h-5" /> : channel.icon}
-                </div>
-                <div className="text-left">
-                  <div className={`font-medium ${isDisabled ? 'text-zinc-500' : 'text-white'}`}>{channel.name}</div>
-                  <div className="text-xs font-mono text-zinc-500 mt-0.5">
-                    Dial {channel.number}
+            <div key={channel.id} className="flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: isDisabled ? 1 : 1.02 }}
+                whileTap={{ scale: isDisabled ? 1 : 0.98 }}
+                onClick={() => !isDisabled && onCall(channel)}
+                disabled={isDisabled}
+                className={`flex-1 flex items-center justify-between p-4 rounded-xl border transition-colors ${
+                  isActive
+                    ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-400'
+                    : isDisabled
+                      ? 'bg-zinc-900/50 border-white/5 opacity-50 cursor-not-allowed text-zinc-500'
+                      : 'bg-zinc-900 border-white/5 text-zinc-300 hover:bg-zinc-800 hover:border-white/10'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`p-2 rounded-lg ${
+                      isActive ? 'bg-indigo-500/20' : isDisabled ? 'bg-zinc-800/50' : 'bg-zinc-800'
+                    }`}
+                  >
+                    {isDisabled ? <Lock className="w-5 h-5" /> : channel.icon}
+                  </div>
+                  <div className="text-left">
+                    <div className={`font-medium ${isDisabled ? 'text-zinc-500' : 'text-white'}`}>{channel.name}</div>
+                    <div className="text-xs font-mono text-zinc-500 mt-0.5">
+                      Dial {channel.number}
+                    </div>
                   </div>
                 </div>
-              </div>
-              {!isDisabled && (
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    isActive ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-zinc-800 text-zinc-400'
-                  }`}
+                {!isDisabled && (
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      isActive ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-zinc-800 text-zinc-400'
+                    }`}
+                  >
+                    <Phone className="w-4 h-4" />
+                  </div>
+                )}
+              </motion.button>
+              {onRepair && !isDisabled && (
+                <motion.button
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onRepair}
+                  title="Open Code Repair Agent"
+                  className="w-10 h-10 shrink-0 rounded-xl border border-white/5 bg-zinc-900 hover:bg-amber-500/10 hover:border-amber-500/30 text-zinc-500 hover:text-amber-400 flex items-center justify-center transition-colors"
                 >
-                  <Phone className="w-4 h-4" />
-                </div>
+                  <Wrench className="w-4 h-4" />
+                </motion.button>
               )}
-            </motion.button>
+            </div>
           );
         })}
       </div>

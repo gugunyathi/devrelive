@@ -196,7 +196,7 @@ export default function Home() {
           {/* CallPad: full width on mobile (when no active call), sidebar on md+ */}
           {activeTab === 'call' && (
             <div className={`${activeChannel ? 'hidden md:flex' : 'flex w-full md:w-80'} flex-shrink-0`}>
-              <CallPad onCall={handleCall} activeChannelId={activeChannel?.id} />
+              <CallPad onCall={handleCall} onRepair={() => setActiveTab('repair')} activeChannelId={activeChannel?.id} />
             </div>
           )}
 
