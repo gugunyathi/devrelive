@@ -6,6 +6,8 @@ import {
   GitCommit, Clock, History, Trash2,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useAuth } from '@/contexts/AuthContext';
+import { PaymentGate } from './PaymentGate';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,6 +83,7 @@ function SeverityBadge({ severity }: { severity: 'high' | 'medium' | 'low' }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function RepairView() {
+  const { address } = useAuth();
   const [appUrl, setAppUrl] = useState('');
   const [repoUrl, setRepoUrl] = useState('');
   const [isRepairing, setIsRepairing] = useState(false);
@@ -91,6 +94,7 @@ export function RepairView() {
   const [checkingGitHub, setCheckingGitHub] = useState(true);
   const [repairHistory, setRepairHistory] = useState<RepairHistoryRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showPaymentGate, setShowPaymentGate] = useState(false);
 
   // ── Check GitHub connection status on mount ──────────────────────────────
   useEffect(() => {
@@ -224,6 +228,16 @@ export function RepairView() {
 
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-zinc-950 text-white overflow-hidden">
+      <PaymentGate
+        open={showPaymentGate}
+        amount="2.00"
+        title="AI Repair Session"
+        description="One AI-powered code repair scan &amp; fix"
+        purpose="repair"
+        userAddress={address}
+        onSuccess={() => { setShowPaymentGate(false); handleStartRepair(); }}
+        onClose={() => setShowPaymentGate(false)}
+      />
 
       {/* ── Left Panel ──────────────────────────────────────────────────── */}
       <div className="w-full md:w-1/2 flex flex-col border-b md:border-b-0 md:border-r border-white/10 overflow-y-auto">
@@ -341,7 +355,7 @@ export function RepairView() {
               onClick={
                 isRepairFinished
                   ? () => { setReport(null); setStreamSteps([]); setErrorMsg(null); }
-                  : handleStartRepair
+                  : () => setShowPaymentGate(true)
               }
               disabled={!canStartRepair && !isRepairFinished}
               className="w-full bg-indigo-500 hover:bg-indigo-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"

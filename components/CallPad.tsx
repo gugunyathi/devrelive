@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Phone, Hash, Code, Server, User, Box, Bot, MessageSquare, Lock, Wrench } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '@/contexts/AuthContext';
+import { PaymentGate } from './PaymentGate';
 
 export interface Channel {
   id: string;
@@ -28,9 +29,20 @@ interface CallPadProps {
 
 export function CallPad({ onCall, onRepair, activeChannelId }: CallPadProps) {
   const { address } = useAuth();
+  const [pendingChannel, setPendingChannel] = useState<Channel | null>(null);
 
   return (
     <div className="w-full bg-zinc-950 border-r border-white/10 h-full flex flex-col">
+      <PaymentGate
+        open={!!pendingChannel}
+        amount="1.00"
+        title={`Call ${pendingChannel?.name ?? ''}`}
+        description="One live DevRel support call session"
+        purpose="call"
+        userAddress={address}
+        onSuccess={() => { const ch = pendingChannel!; setPendingChannel(null); onCall(ch); }}
+        onClose={() => setPendingChannel(null)}
+      />
       <div className="p-6 border-b border-white/10">
         <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
           <Code className="w-6 h-6 text-indigo-500" />
@@ -50,7 +62,7 @@ export function CallPad({ onCall, onRepair, activeChannelId }: CallPadProps) {
               <motion.button
                 whileHover={{ scale: isDisabled ? 1 : 1.02 }}
                 whileTap={{ scale: isDisabled ? 1 : 0.98 }}
-                onClick={() => !isDisabled && onCall(channel)}
+                onClick={() => !isDisabled && setPendingChannel(channel)}
                 disabled={isDisabled}
                 className={`flex-1 flex items-center justify-between p-4 rounded-xl border transition-colors ${
                   isActive
