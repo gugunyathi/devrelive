@@ -26,6 +26,8 @@
     "ogTitle": "DevReLive",
     "ogDescription": "Live AI Code repairs, direct Dev support for builds, code and apps.",
     "ogImageUrl": "https://devrelive.vercel.app/og.png",
+    "imageUrl": "https://devrelive.vercel.app/og.png",
+    "buttonTitle": "Launch App",
     "noindex": false
   }
 }
