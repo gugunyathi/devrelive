@@ -51,6 +51,7 @@ export const metadata: Metadata = {
         title: 'Open DevReLive',
         action: {
           type: 'launch_miniapp',
+          name: 'Devrelive',
           url: 'https://devrelive.vercel.app',
           splashImageUrl: 'https://devrelive.vercel.app/splash.png',
           splashBackgroundColor: '#000000',
