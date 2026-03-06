@@ -15,7 +15,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'DevReLive',
-  description: 'A live call center for developers to get direct assistance with their builds, code, and apps on Base.',
+  description: 'Live AI Code repairs, direct Dev support for builds, code and apps.',
   metadataBase: new URL('https://devrelive.vercel.app'),
   icons: {
     icon: '/icon.png',
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'DevReLive',
-    description: 'A live call center for developers to get direct assistance with their builds, code, and apps on Base.',
+    description: 'Live AI Code repairs, direct Dev support for builds, code and apps.',
     url: 'https://devrelive.vercel.app',
     siteName: 'DevReLive',
     images: [
@@ -39,22 +39,20 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'DevReLive',
-    description: 'A live call center for developers to get direct assistance with their builds, code, and apps on Base.',
+    description: 'Live AI Code repairs, direct Dev support for builds, code and apps.',
     images: ['/og.png'],
   },
   other: {
     'base:app_id': '69aaae3f3c6755b23e8e4138',
     'fc:miniapp': JSON.stringify({
       version: 'next',
-      imageUrl: 'https://devrelive.vercel.app/embed.png',
+      imageUrl: 'https://devrelive.vercel.app/og.png',
       button: {
-        title: 'Open DevReLive',
+        title: 'Launch App',
         action: {
           type: 'launch_miniapp',
-          name: 'Devrelive',
+          name: 'DevReLive',
           url: 'https://devrelive.vercel.app',
-          splashImageUrl: 'https://devrelive.vercel.app/splash.png',
-          splashBackgroundColor: '#000000',
         },
       },
     }),

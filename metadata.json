@@ -1,6 +1,6 @@
 {
   "name": "DevReLive",
-  "description": "A live call center for developers to get direct assistance with their builds, code, and apps on Base.",
+  "description": "Live AI Code repairs, direct Dev support for builds, code and apps.",
   "requestFramePermissions": [
     "camera",
     "microphone",
