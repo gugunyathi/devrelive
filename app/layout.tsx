@@ -43,6 +43,7 @@ export const metadata: Metadata = {
     images: ['/og.png'],
   },
   other: {
+    'base:app_id': '69aaae3f3c6755b23e8e4138',
     'fc:miniapp': JSON.stringify({
       version: 'next',
       imageUrl: 'https://devrelive.vercel.app/embed.png',

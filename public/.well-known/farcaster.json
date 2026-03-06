@@ -13,7 +13,7 @@
     "splashBackgroundColor": "#000000",
     "webhookUrl": "https://devrelive.vercel.app/api/webhook",
     "subtitle": "Live dev support on Base",
-    "description": "A live call center for developers to get direct assistance with their builds, code, and apps on Base.",
+    "description": "Live AI Code repairs, direct Dev support for builds, code and apps.",
     "screenshotUrls": [
       "https://devrelive.vercel.app/screenshot1.png",
       "https://devrelive.vercel.app/screenshot2.png",
