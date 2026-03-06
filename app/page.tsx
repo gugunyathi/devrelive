@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { CallPad, Channel } from '@/components/CallPad';
 import { ActiveCall } from '@/components/ActiveCall';
@@ -10,11 +11,10 @@ import { CalendarView } from '@/components/CalendarView';
 import { RepairView } from '@/components/RepairView';
 import { ProfileView } from '@/components/ProfileView';
 import { AdminView } from '@/components/AdminView';
-import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogOut, LogIn, LockKeyhole, Trophy } from 'lucide-react';
 import { LeaderboardView } from '@/components/LeaderboardView';
-import { motion, AnimatePresence } from 'motion/react';
-import { useAuth } from '@/contexts/AuthContext';
+import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogOut, LogIn, LockKeyhole, Trophy } from 'lucide-react';
 import { SignInWithBaseButton } from '@base-org/account-ui/react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'discord' | 'call' | 'calendar' | 'integrations' | 'repair' | 'profile' | 'admin' | 'leaderboard'>('discord');
@@ -197,12 +197,12 @@ export default function Home() {
                 </button>
               </>
             ) : (
-              <SignInWithBaseButton
-                align="center"
-                variant="solid"
-                colorScheme="dark"
-                onClick={signIn}
-              />
+              <div className="scale-75 origin-right">
+                <SignInWithBaseButton
+                  colorScheme="dark"
+                  onClick={signIn}
+                />
+              </div>
             )}
           </div>
         </div>
