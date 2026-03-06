@@ -24,7 +24,7 @@
     "heroImageUrl": "https://devrelive.vercel.app/hero.png",
     "tagline": "Call Base live support",
     "ogTitle": "DevReLive",
-    "ogDescription": "A live call center for developers to get direct assistance with their builds, code, and apps on Base.",
+    "ogDescription": "Live AI Code repairs, direct Dev support for builds, code and apps.",
     "ogImageUrl": "https://devrelive.vercel.app/og.png",
     "noindex": false
   }
