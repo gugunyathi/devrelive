@@ -42,6 +42,65 @@ const MOCK_REPLIES = [
 
 const TAGS = ['Node', 'Base Account', 'Onchain Kit', 'Mini Apps', 'AI Agents', 'Feedback', 'Bug Report', 'Question', 'Discussion'];
 
+/** Channels that use a plain chat UI (no forum posts/threads) */
+const CHAT_CHANNELS = new Set(['developer-chat', 'node-operators', 'mini-apps', 'base-build', 'ai-agents']);
+
+const CHANNEL_DESCRIPTIONS: Record<string, string> = {
+  'developer-chat': 'General chat for developers who are building on Base',
+  'node-operators': 'Discussion for Base node operators',
+  'mini-apps': 'Chat for mini app builders',
+  'base-build': 'Building on Base — share what you\'re shipping',
+  'ai-agents': 'AI agent development on Base',
+};
+
+type ChatMessage = { id: string; author: string; role: string; time: string; content: string };
+
+const INITIAL_CHAT_MESSAGES: Record<string, ChatMessage[]> = {
+  'developer-chat': [
+    { id: 'dc1', author: 'Blackbox', role: 'user', time: 'Today at 11:45 AM', content: 'I have collected: Only 2 transfer attempts in 372 transactions (both failed)\n\nI also found another four $USDC TOKEN DISTRIBUTION (Scam attempts)\nBase is relatively clean, and my tools are designed to keep it clean by unwebbing these bad deployers.\n\nPlease help by reporting any airdropped tokens\n\nYou can:\nA. Just give me the contract address or a contaminated EOA address.\nB. Go to https://www.blackboxmint.com/balances/ and add your address to the scanner.\n\nDust is anything you never asked for. Dust can be:\n• A broken contract\n• The feds tracking\n• Universities experimenting\n• A scam or a lure to a scam.\n\nPlease share your dust' },
+    { id: 'dc2', author: 'imbanytui | Unity Nodes', role: 'user', time: 'Today at 12:08 PM', content: 'The base really tries to keep the ecosystem clean, but the openness of the blockchain allows anyone to deploy anything\n\nIt\'s best to just ignore these tokens' },
+    { id: 'dc3', author: 'vDan', role: 'user', time: 'Today at 12:15 PM', content: 'Anyone else seeing increased gas fees today? My deployments are taking longer than usual' },
+    { id: 'dc4', author: 'cryptobuildoor', role: 'user', time: 'Today at 12:22 PM', content: 'yeah gas has been a bit spiky the last hour or so, probably some mempool congestion' },
+    { id: 'dc5', author: 'Gugu', role: 'admin', time: 'Today at 12:30 PM', content: 'Hey all 👋 just a reminder — our weekly office hours are tomorrow at 3pm UTC. Drop your questions in #developer-forum if you want them covered!' },
+  ],
+  'node-operators': [
+    { id: 'no1', author: 'Jon Roethke', role: 'admin', time: 'Yesterday at 4:00 PM', content: 'Reminder: We\'ve updated the snapshot documentation at https://docs.base.org/base-chain/node-operators/snapshots — the weekly mainnet Reth snapshot is now available.' },
+    { id: 'no2', author: 'Lolmode', role: 'user', time: 'Yesterday at 4:10 PM', content: 'Is there any ETA on PathDB (PBSS) snapshots for geth? Syncing from scratch is taking forever' },
+    { id: 'no3', author: 'Jon Roethke', role: 'admin', time: 'Yesterday at 4:18 PM', content: 'No official PBSS snapshot planned — we recommend migrating to Reth for high-performance nodes. Much better perf characteristics.' },
+    { id: 'no4', author: 'node_runner_42', role: 'user', time: 'Today at 8:30 AM', content: 'My reth node dropped off the network overnight, any known issues?' },
+    { id: 'no5', author: 'kacperrr0.base.eth', role: 'admin', time: 'Today at 9:00 AM', content: 'Nothing on our end — might be a peer connectivity issue. Try restarting with --max-outbound-peers 50' },
+    { id: 'no6', author: 'node_runner_42', role: 'user', time: 'Today at 9:12 AM', content: 'That fixed it, thanks!' },
+  ],
+  'mini-apps': [
+    { id: 'ma1', author: 'Xiaomao', role: 'admin', time: 'Yesterday at 2:00 PM', content: 'PSA: Make sure your base:app_id meta tag is hardcoded in your root layout HTML — not injected dynamically. Apps with dynamic tags are failing manifest verification.' },
+    { id: 'ma2', author: 'kieran', role: 'user', time: 'Yesterday at 2:15 PM', content: 'oh that explains my issue! I was injecting it with useEffect 🤦' },
+    { id: 'ma3', author: 'Linas | true.eth', role: 'user', time: 'Yesterday at 3:00 PM', content: 'Quick question — does the icon.png need to be exactly 1024x1024, or is that just a recommendation?' },
+    { id: 'ma4', author: 'Gugu', role: 'admin', time: 'Yesterday at 3:05 PM', content: 'It needs to be exactly 1024×1024px PNG with no alpha transparency. If it has an alpha channel, it will fail to render in Base App.' },
+    { id: 'ma5', author: 'bezdar', role: 'user', time: 'Today at 10:00 AM', content: 'Just shipped my first mini app on Base! NFT tombstones for dead ERC-20 tokens. Check it out at shitcoingraveyard.xyz 😅' },
+    { id: 'ma6', author: 'vDan', role: 'user', time: 'Today at 10:08 AM', content: 'haha great concept 😂 good use of the token-locking pattern' },
+    { id: 'ma7', author: 'Xiaomao', role: 'admin', time: 'Today at 10:20 AM', content: 'Nice! Make sure to register it on base.dev so it shows up in the leaderboards and discovery features 🚀' },
+  ],
+  'base-build': [
+    { id: 'bb1', author: 'Base | Sift AI Support Agent', role: 'admin', time: '2 days ago', content: 'Welcome to #base-build! Share what you\'re building on Base here. Check out batches.base.org for builder resources and community support.' },
+    { id: 'bb2', author: 'jack2163', role: 'user', time: 'Yesterday at 11:30 AM', content: 'Working on getting OBN (Olive Branch Network) listed as an AppCoin on Base App. Any devs who\'ve done this before have tips?' },
+    { id: 'bb3', author: 'Gugu', role: 'admin', time: 'Yesterday at 11:45 AM', content: 'Best to post in #developer-forum so we can track it properly. Make sure your coin contract is verified on Basescan first.' },
+    { id: 'bb4', author: 'stpn.base.eth', role: 'admin', time: 'Today at 8:00 AM', content: 'Base Batches cohort applications are open! Apply at batches.base.org — 6-week accelerator with technical support and funding.' },
+    { id: 'bb5', author: 'cell', role: 'user', time: 'Today at 8:45 AM', content: 'Do you need a live product to apply, or is early-stage ok?' },
+    { id: 'bb6', author: 'stpn.base.eth', role: 'admin', time: 'Today at 8:50 AM', content: 'Early stage is totally fine! They\'re looking for ambitious builders, not finished products.' },
+    { id: 'bb7', author: 'Ruslan S.', role: 'user', time: 'Today at 11:00 AM', content: 'Anyone using OnchainKit for their frontend? Having trouble with the wallet connection flow on mobile' },
+    { id: 'bb8', author: 'cryptobuildoor', role: 'user', time: 'Today at 11:05 AM', content: 'yeah had that issue — make sure you\'re on the latest @coinbase/onchainkit, they fixed a mobile wallet bug in v0.38' },
+  ],
+  'ai-agents': [
+    { id: 'ag1', author: 'Gugu', role: 'admin', time: '2 days ago', content: 'AI agents section is heating up 🤖 If you\'re building AI agents on Base (CDP AgentKit, LangChain, etc.) share your builds here!' },
+    { id: 'ag2', author: 'imbanytui | Unity Nodes', role: 'user', time: 'Yesterday at 1:00 PM', content: 'Has anyone used CDP AgentKit with on-chain actions? Curious how well it handles complex multi-step transactions' },
+    { id: 'ag3', author: 'Web3Builder_TG', role: 'user', time: 'Yesterday at 1:20 PM', content: 'I built an agent that auto-compounds LP positions using CDP AgentKit. The wallet actions work really smoothly once you get the prompts right' },
+    { id: 'ag4', author: 'imbanytui | Unity Nodes', role: 'user', time: 'Yesterday at 1:28 PM', content: 'nice! did you run into issues with gas estimation for complex multicalls?' },
+    { id: 'ag5', author: 'Web3Builder_TG', role: 'user', time: 'Yesterday at 1:35 PM', content: 'a bit — I ended up adding a 1.3x gas buffer multiplier on estimates. No failures since' },
+    { id: 'ag6', author: 'CryptoDev_TG', role: 'user', time: 'Today at 9:00 AM', content: 'Just open-sourced my Base AI trading agent — uses Gemini + CDP for on-chain execution. Feedback welcome!' },
+    { id: 'ag7', author: 'Gugu', role: 'admin', time: 'Today at 9:30 AM', content: 'Awesome, sharing this in the weekly builder roundup! Also check out the AI Agents track at batches.base.org 👀' },
+  ],
+};
+
 interface DiscordViewProps {
   onStartCall?: (title: string, context?: string) => void;
   onNavigateToRepair?: () => void;
@@ -71,6 +130,18 @@ export function DiscordView({ onStartCall, onNavigateToRepair, isTelegramConnect
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isScheduled, setIsScheduled] = useState(false);
+
+  // Chat channel state
+  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(INITIAL_CHAT_MESSAGES);
+  const [chatInput, setChatInput] = useState('');
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll chat to bottom when channel changes or messages update
+  useEffect(() => {
+    if (CHAT_CHANNELS.has(activeChannel) && chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [activeChannel, chatMessages]);
 
   // Fetch posts and replies from API on mount, fallback to mock data
   const fetchPosts = useCallback(async () => {
@@ -291,6 +362,25 @@ export function DiscordView({ onStartCall, onNavigateToRepair, isTelegramConnect
     }
   };
 
+  const handleSendChatMessage = () => {
+    if (!chatInput.trim()) return;
+    const authorName = address ? address.substring(0, 6) + '...' : 'you';
+    const msg: ChatMessage = {
+      id: `cm-${Date.now()}`,
+      author: authorName,
+      role: 'user',
+      time: 'Just now',
+      content: chatInput.trim(),
+    };
+    setChatMessages(prev => ({
+      ...prev,
+      [activeChannel]: [...(prev[activeChannel] ?? []), msg],
+    }));
+    setChatInput('');
+  };
+
+  const isChatChannel = CHAT_CHANNELS.has(activeChannel);
+
   const getChannelClass = (id: string, isForum: boolean = false) => {
     const baseClass = "flex items-center px-2 py-1.5 rounded cursor-pointer transition-colors";
     if (activeChannel === id) {
@@ -412,7 +502,12 @@ export function DiscordView({ onStartCall, onNavigateToRepair, isTelegramConnect
             <Menu className="w-6 h-6" />
           </button>
           <MessageSquare className="w-6 h-6 text-[#80848E] mr-2 hidden sm:block" />
-          <h3 className="font-semibold text-white flex-1 truncate">{activeChannel}</h3>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-white truncate">{activeChannel}</h3>
+            {isChatChannel && CHANNEL_DESCRIPTIONS[activeChannel] && (
+              <p className="text-xs text-[#949BA4] truncate hidden sm:block">{CHANNEL_DESCRIPTIONS[activeChannel]}</p>
+            )}
+          </div>
           <div className="flex items-center gap-2 sm:gap-4 text-[#B5BAC1]">
             <BellOff className="w-5 h-5 cursor-pointer hover:text-[#DBDEE1] hidden sm:block" />
             <Users className="w-5 h-5 cursor-pointer hover:text-[#DBDEE1] hidden sm:block" />
@@ -427,194 +522,261 @@ export function DiscordView({ onStartCall, onNavigateToRepair, isTelegramConnect
           </div>
         </div>
 
-        {/* Forum Content */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-4 scroll-smooth">
-          {/* Search/Create Post */}
-          <div className="bg-[#2B2D31] rounded-lg p-3 flex flex-col gap-3 border border-[#1E1F22]/50">
-            {isCreatingPost ? (
-              <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                <input 
-                  type="text" 
-                  placeholder="Post Title" 
-                  value={newPostTitle}
-                  onChange={(e) => setNewPostTitle(e.target.value)}
-                  className="bg-[#1E1F22] border border-[#1E1F22] rounded p-2 text-[#DBDEE1] placeholder-[#949BA4] outline-none focus:border-[#5865F2] transition-colors"
-                />
-                <textarea 
-                  placeholder="What's on your mind?" 
-                  value={newPostContent}
-                  onChange={(e) => setNewPostContent(e.target.value)}
-                  className="bg-[#1E1F22] border border-[#1E1F22] rounded p-2 text-[#DBDEE1] placeholder-[#949BA4] outline-none focus:border-[#5865F2] transition-colors min-h-[100px] resize-y"
-                />
-                {newPostImage && (
-                  <div className="relative inline-block w-32 h-32 rounded-lg overflow-hidden border border-[#1E1F22]">
-                    <Image src={newPostImage} alt="Upload preview" fill className="object-cover" referrerPolicy="no-referrer" />
-                    <button 
-                      onClick={() => setNewPostImage(null)}
-                      className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full p-1"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+        {/* Content: Chat or Forum */}
+        {isChatChannel ? (
+          <>
+            {/* Chat Messages */}
+            <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 pt-4 custom-scrollbar flex flex-col scroll-smooth">
+              {(chatMessages[activeChannel] ?? []).map((msg, i, arr) => {
+                const prev = arr[i - 1];
+                const grouped = !!(prev && prev.author === msg.author);
+                return (
+                  <div key={msg.id} className={`flex items-start gap-3 hover:bg-[#2E3035] -mx-4 px-4 py-0.5 transition-colors ${!grouped ? 'mt-5' : ''}`}>
+                    {!grouped ? (
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0 ${msg.role === 'admin' ? 'bg-emerald-500' : 'bg-[#5865F2]'}`}>
+                        {msg.author.charAt(0).toUpperCase()}
+                      </div>
+                    ) : (
+                      <div className="w-10 shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      {!grouped && (
+                        <div className="flex items-baseline gap-2 mb-0.5">
+                          <span className={`font-medium ${msg.role === 'admin' ? 'text-emerald-400' : 'text-white'}`}>{msg.author}</span>
+                          {msg.role === 'admin' && <span className="bg-[#5865F2] text-white text-[10px] px-1 rounded uppercase font-bold ml-0.5">Admin</span>}
+                          <span className="text-xs text-[#949BA4]">{msg.time}</span>
+                        </div>
+                      )}
+                      <p className="text-[#DBDEE1] text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                    </div>
                   </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <button 
+                );
+              })}
+              <div className="h-4 shrink-0" />
+            </div>
+
+            {/* Chat Input */}
+            <div className="px-4 pb-4 shrink-0">
+              <div className="bg-[#383A40] rounded-lg p-2 flex items-center gap-2">
+                <button
+                  className="w-8 h-8 rounded-full bg-[#404249] hover:bg-[#4E5058] flex items-center justify-center text-[#DBDEE1] shrink-0"
+                  title="Add attachment"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      if (!address) { signIn(); return; }
+                      handleSendChatMessage();
+                    }
+                  }}
+                  placeholder={`Message #${activeChannel}`}
+                  className="bg-transparent border-none outline-none flex-1 text-[#DBDEE1] placeholder-[#949BA4] text-sm"
+                />
+                <button
+                  onClick={() => { if (!address) { signIn(); return; } handleSendChatMessage(); }}
+                  disabled={!chatInput.trim()}
+                  className="w-8 h-8 rounded-full bg-[#5865F2] hover:bg-[#4752C4] disabled:bg-[#404249] disabled:text-[#949BA4] flex items-center justify-center text-white shrink-0 transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Forum Content */
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-4 scroll-smooth">
+            {/* Search/Create Post */}
+            <div className="bg-[#2B2D31] rounded-lg p-3 flex flex-col gap-3 border border-[#1E1F22]/50">
+              {isCreatingPost ? (
+                <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <input
+                    type="text"
+                    placeholder="Post Title"
+                    value={newPostTitle}
+                    onChange={(e) => setNewPostTitle(e.target.value)}
+                    className="bg-[#1E1F22] border border-[#1E1F22] rounded p-2 text-[#DBDEE1] placeholder-[#949BA4] outline-none focus:border-[#5865F2] transition-colors"
+                  />
+                  <textarea
+                    placeholder="What's on your mind?"
+                    value={newPostContent}
+                    onChange={(e) => setNewPostContent(e.target.value)}
+                    className="bg-[#1E1F22] border border-[#1E1F22] rounded p-2 text-[#DBDEE1] placeholder-[#949BA4] outline-none focus:border-[#5865F2] transition-colors min-h-[100px] resize-y"
+                  />
+                  {newPostImage && (
+                    <div className="relative inline-block w-32 h-32 rounded-lg overflow-hidden border border-[#1E1F22]">
+                      <Image src={newPostImage} alt="Upload preview" fill className="object-cover" referrerPolicy="no-referrer" />
+                      <button
+                        onClick={() => setNewPostImage(null)}
+                        className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => newPostFileInputRef.current?.click()}
+                        className="w-8 h-8 rounded-full bg-[#383A40] hover:bg-[#404249] flex items-center justify-center text-[#DBDEE1] shrink-0"
+                        title="Upload Image"
+                      >
+                        <Plus className="w-5 h-5" />
+                      </button>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        ref={newPostFileInputRef}
+                        onChange={(e) => handleImageUpload(e, setNewPostImage)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setIsCreatingPost(false)}
+                        className="text-[#949BA4] hover:text-[#DBDEE1] px-3 py-1.5 rounded font-medium transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleCreatePost}
+                        disabled={!newPostTitle.trim()}
+                        className="bg-[#5865F2] hover:bg-[#4752C4] disabled:bg-[#3F4147] disabled:text-[#949BA4] text-white px-4 py-1.5 rounded font-medium flex items-center justify-center gap-2 transition-colors"
+                      >
+                        Post
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full">
+                  <div className="flex items-center gap-3 w-full sm:w-auto flex-1">
+                    <button
                       onClick={() => newPostFileInputRef.current?.click()}
                       className="w-8 h-8 rounded-full bg-[#383A40] hover:bg-[#404249] flex items-center justify-center text-[#DBDEE1] shrink-0"
                       title="Upload Image"
                     >
                       <Plus className="w-5 h-5" />
                     </button>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
                       ref={newPostFileInputRef}
-                      onChange={(e) => handleImageUpload(e, setNewPostImage)}
+                      onChange={(e) => {
+                        handleImageUpload(e, setNewPostImage);
+                        setIsCreatingPost(true);
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Search or create a post..."
+                      onFocus={() => setIsCreatingPost(true)}
+                      className="bg-transparent border-none outline-none flex-1 text-[#DBDEE1] placeholder-[#949BA4] text-base sm:text-lg w-full"
                     />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => setIsCreatingPost(false)}
-                      className="text-[#949BA4] hover:text-[#DBDEE1] px-3 py-1.5 rounded font-medium transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      onClick={handleCreatePost}
-                      disabled={!newPostTitle.trim()}
-                      className="bg-[#5865F2] hover:bg-[#4752C4] disabled:bg-[#3F4147] disabled:text-[#949BA4] text-white px-4 py-1.5 rounded font-medium flex items-center justify-center gap-2 transition-colors"
-                    >
-                      Post
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full">
-                <div className="flex items-center gap-3 w-full sm:w-auto flex-1">
-                  <button 
-                    onClick={() => newPostFileInputRef.current?.click()}
-                    className="w-8 h-8 rounded-full bg-[#383A40] hover:bg-[#404249] flex items-center justify-center text-[#DBDEE1] shrink-0"
-                    title="Upload Image"
+                  <button
+                    onClick={() => setIsCreatingPost(true)}
+                    className="bg-[#5865F2] hover:bg-[#4752C4] text-white px-4 py-1.5 rounded font-medium flex items-center justify-center gap-2 transition-colors w-full sm:w-auto mt-2 sm:mt-0"
                   >
-                    <Plus className="w-5 h-5" />
+                    <MessageSquare className="w-4 h-4" />
+                    New Post
                   </button>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    ref={newPostFileInputRef}
-                    onChange={(e) => {
-                      handleImageUpload(e, setNewPostImage);
-                      setIsCreatingPost(true);
-                    }}
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="Search or create a post..." 
-                    onFocus={() => setIsCreatingPost(true)}
-                    className="bg-transparent border-none outline-none flex-1 text-[#DBDEE1] placeholder-[#949BA4] text-base sm:text-lg w-full"
-                  />
                 </div>
-                <button 
-                  onClick={() => setIsCreatingPost(true)}
-                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white px-4 py-1.5 rounded font-medium flex items-center justify-center gap-2 transition-colors w-full sm:w-auto mt-2 sm:mt-0"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  New Post
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* Tags Row */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar shrink-0">
-            <button className="flex items-center gap-1 px-3 py-1.5 bg-[#2B2D31] hover:bg-[#3F4147] rounded-lg text-sm font-medium text-[#DBDEE1] border border-[#1E1F22]/50 whitespace-nowrap">
-              <span className="text-[#949BA4]">↑↓</span> Sort & View <ChevronDown className="w-4 h-4 ml-1" />
-            </button>
-            <div className="w-px h-6 bg-[#4E5058] mx-1 shrink-0" />
-            {TAGS.map(tag => (
-              <button key={tag} className="px-3 py-1.5 bg-[#2B2D31] hover:bg-[#3F4147] rounded-lg text-sm font-medium text-[#DBDEE1] border border-[#1E1F22]/50 whitespace-nowrap">
-                {tag}
+            {/* Tags Row */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar shrink-0">
+              <button className="flex items-center gap-1 px-3 py-1.5 bg-[#2B2D31] hover:bg-[#3F4147] rounded-lg text-sm font-medium text-[#DBDEE1] border border-[#1E1F22]/50 whitespace-nowrap">
+                <span className="text-[#949BA4]">↑↓</span> Sort & View <ChevronDown className="w-4 h-4 ml-1" />
               </button>
-            ))}
-          </div>
+              <div className="w-px h-6 bg-[#4E5058] mx-1 shrink-0" />
+              {TAGS.map(tag => (
+                <button key={tag} className="px-3 py-1.5 bg-[#2B2D31] hover:bg-[#3F4147] rounded-lg text-sm font-medium text-[#DBDEE1] border border-[#1E1F22]/50 whitespace-nowrap">
+                  {tag}
+                </button>
+              ))}
+            </div>
 
-          {/* Posts List */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-            {posts
-              .filter(p => p.channelId === activeChannel)
-              .filter(p => (p as any).source !== 'telegram' || isTelegramConnected)
-              .map(post => (
-              <div 
-                key={post.id}
-                onClick={() => setSelectedPost(post.id)}
-                className={`bg-[#2B2D31] hover:bg-[#2E3035] border border-[#1E1F22]/50 rounded-xl p-4 cursor-pointer transition-colors flex flex-col gap-3 ${selectedPost === post.id ? 'ring-1 ring-[#5865F2]' : ''}`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h4 className="text-base font-semibold text-[#DBDEE1] leading-snug line-clamp-2 flex items-start gap-2">
-                    {post.resolved && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />}
-                    {(post as any).source === 'telegram' && (
-                      <MessageCircle className="w-4 h-4 text-[#229ED9] shrink-0 mt-0.5" />
+            {/* Posts List */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+              {posts
+                .filter(p => p.channelId === activeChannel)
+                .filter(p => (p as any).source !== 'telegram' || isTelegramConnected)
+                .map(post => (
+                  <div
+                    key={post.id}
+                    onClick={() => setSelectedPost(post.id)}
+                    className={`bg-[#2B2D31] hover:bg-[#2E3035] border border-[#1E1F22]/50 rounded-xl p-4 cursor-pointer transition-colors flex flex-col gap-3 ${selectedPost === post.id ? 'ring-1 ring-[#5865F2]' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <h4 className="text-base font-semibold text-[#DBDEE1] leading-snug line-clamp-2 flex items-start gap-2">
+                        {post.resolved && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />}
+                        {(post as any).source === 'telegram' && (
+                          <MessageCircle className="w-4 h-4 text-[#229ED9] shrink-0 mt-0.5" />
+                        )}
+                        {post.title}
+                      </h4>
+                      {post.hasImage && (
+                        <div className="relative w-16 h-16 bg-[#1E1F22] rounded-lg border border-[#1E1F22]/50 flex-shrink-0 overflow-hidden mt-2">
+                          <Image src={(post as any).imageUrl || `https://picsum.photos/seed/${post.id}/100/100`} alt="Post thumbnail" fill className="object-cover opacity-80" referrerPolicy="no-referrer" />
+                        </div>
+                      )}
+                    </div>
+
+                    {post.tags.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {post.tags.map(tag => (
+                          <span key={tag} className="px-2 py-0.5 bg-[#1E1F22] text-[#DBDEE1] rounded text-xs font-semibold">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     )}
-                    {post.title}
-                  </h4>
-                  {post.hasImage && (
-                    <div className="relative w-16 h-16 bg-[#1E1F22] rounded-lg border border-[#1E1F22]/50 flex-shrink-0 overflow-hidden mt-2">
-                      <Image src={(post as any).imageUrl || `https://picsum.photos/seed/${post.id}/100/100`} alt="Post thumbnail" fill className="object-cover opacity-80" referrerPolicy="no-referrer" />
-                    </div>
-                  )}
-                </div>
-                
-                {post.tags.length > 0 && (
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {post.tags.map(tag => (
-                      <span key={tag} className="px-2 py-0.5 bg-[#1E1F22] text-[#DBDEE1] rounded text-xs font-semibold">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
 
-                <div className="flex items-center justify-between mt-auto pt-3 border-t border-[#1E1F22]/50">
-                  <div className="flex items-center gap-2 text-xs text-[#949BA4]">
-                    <div className="w-5 h-5 rounded-full bg-[#5865F2] flex items-center justify-center text-white font-bold text-[10px] shrink-0">
-                      {post.author.charAt(0)}
+                    <div className="flex items-center justify-between mt-auto pt-3 border-t border-[#1E1F22]/50">
+                      <div className="flex items-center gap-2 text-xs text-[#949BA4]">
+                        <div className="w-5 h-5 rounded-full bg-[#5865F2] flex items-center justify-center text-white font-bold text-[10px] shrink-0">
+                          {post.author.charAt(0)}
+                        </div>
+                        <span className="font-medium hover:underline text-[#DBDEE1]">{post.author}</span>
+                        <span>•</span>
+                        <span>{post.time}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[#949BA4] text-xs font-medium">
+                        <div className="flex items-center gap-1">
+                          <MessageSquare className="w-4 h-4" />
+                          {post.replies}
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const context = `Thread Title: ${post.title}\nAuthor: ${post.author}\nContent: ${post.content}`;
+                            onStartCall?.(post.title, context);
+                          }}
+                          className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                        >
+                          <Phone className="w-3 h-3" />
+                          Call
+                        </button>
+                      </div>
                     </div>
-                    <span className="font-medium hover:underline text-[#DBDEE1]">{post.author}</span>
-                    <span>•</span>
-                    <span>{post.time}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-[#949BA4] text-xs font-medium">
-                    <div className="flex items-center gap-1">
-                      <MessageSquare className="w-4 h-4" />
-                      {post.replies}
-                    </div>
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        const context = `Thread Title: ${post.title}\nAuthor: ${post.author}\nContent: ${post.content}`;
-                        onStartCall?.(post.title, context); 
-                      }}
-                      className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded transition-colors flex items-center gap-1"
-                    >
-                      <Phone className="w-3 h-3" />
-                      Call
-                    </button>
-                  </div>
+                ))}
+              {posts.filter(p => p.channelId === activeChannel).length === 0 && (
+                <div className="col-span-full text-center text-[#949BA4] py-12">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p>No posts in this channel yet.</p>
                 </div>
-              </div>
-            ))}
-            {posts.filter(p => p.channelId === activeChannel).length === 0 && (
-              <div className="col-span-full text-center text-[#949BA4] py-12">
-                <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                <p>No posts in this channel yet.</p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Right Panel (Issue Details) */}
