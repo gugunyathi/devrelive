@@ -15,7 +15,48 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'DevReLive',
-  description: 'Live developer assistance for Base',
+  description: 'A live call center for developers to get direct assistance with their builds, code, and apps on Base.',
+  metadataBase: new URL('https://devrelive.vercel.app'),
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
+  openGraph: {
+    title: 'DevReLive',
+    description: 'A live call center for developers to get direct assistance with their builds, code, and apps on Base.',
+    url: 'https://devrelive.vercel.app',
+    siteName: 'DevReLive',
+    images: [
+      {
+        url: '/og.png',
+        width: 1200,
+        height: 630,
+        alt: 'DevReLive',
+      },
+    ],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'DevReLive',
+    description: 'A live call center for developers to get direct assistance with their builds, code, and apps on Base.',
+    images: ['/og.png'],
+  },
+  other: {
+    'fc:miniapp': JSON.stringify({
+      version: 'next',
+      imageUrl: 'https://devrelive.vercel.app/embed.png',
+      button: {
+        title: 'Open DevReLive',
+        action: {
+          type: 'launch_miniapp',
+          url: 'https://devrelive.vercel.app',
+          splashImageUrl: 'https://devrelive.vercel.app/splash.png',
+          splashBackgroundColor: '#000000',
+        },
+      },
+    }),
+  },
 };
 
 export const viewport: Viewport = {

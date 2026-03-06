@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { Hash, Search, ChevronDown, BellOff, Users, MessageSquare, Plus, MoreHorizontal, Menu, X, Phone, Calendar, Clock, CheckCircle2, Send, MessageCircle } from 'lucide-react';
+import { Hash, Search, ChevronDown, BellOff, Users, MessageSquare, Plus, MoreHorizontal, Menu, X, Phone, Calendar, Clock, CheckCircle2, Send, MessageCircle, Wrench } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const INITIAL_POSTS = [
@@ -44,10 +44,11 @@ const TAGS = ['Node', 'Base Account', 'Onchain Kit', 'Mini Apps', 'AI Agents', '
 
 interface DiscordViewProps {
   onStartCall?: (title: string, context?: string) => void;
+  onNavigateToRepair?: () => void;
   isTelegramConnected?: boolean;
 }
 
-export function DiscordView({ onStartCall, isTelegramConnected = false }: DiscordViewProps) {
+export function DiscordView({ onStartCall, onNavigateToRepair, isTelegramConnected = false }: DiscordViewProps) {
   const { address, signIn } = useAuth();
   const [posts, setPosts] = useState(INITIAL_POSTS);
   const [replies, setReplies] = useState(MOCK_REPLIES);
@@ -653,6 +654,14 @@ export function DiscordView({ onStartCall, isTelegramConnected = false }: Discor
               >
                 <Phone className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Call</span>
+              </button>
+              <button
+                onClick={() => onNavigateToRepair?.()}
+                className="text-xs font-medium bg-orange-500/15 hover:bg-orange-500/25 text-orange-400 py-1.5 px-3 rounded transition-colors flex items-center gap-1.5 border border-orange-500/20"
+                title="Go to Repair"
+              >
+                <Wrench className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Repair</span>
               </button>
               <div className="w-px h-4 bg-[#4E5058] mx-1"></div>
               <button 

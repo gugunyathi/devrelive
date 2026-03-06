@@ -15,13 +15,13 @@
     "subtitle": "Live dev support on Base",
     "description": "A live call center for developers to get direct assistance with their builds, code, and apps on Base.",
     "screenshotUrls": [
-      "https://devrelive.vercel.app/screenshots/s1.png",
-      "https://devrelive.vercel.app/screenshots/s2.png",
-      "https://devrelive.vercel.app/screenshots/s3.png"
+      "https://devrelive.vercel.app/screenshot1.png",
+      "https://devrelive.vercel.app/screenshot2.png",
+      "https://devrelive.vercel.app/screenshot3.png"
     ],
     "primaryCategory": "developer-tools",
     "tags": ["devrel", "base", "developer", "support", "calls"],
-    "heroImageUrl": "https://devrelive.vercel.app/og.png",
+    "heroImageUrl": "https://devrelive.vercel.app/hero.png",
     "tagline": "Call Base live support",
     "ogTitle": "DevReLive",
     "ogDescription": "A live call center for developers to get direct assistance with their builds, code, and apps on Base.",

@@ -10,13 +10,14 @@ import { CalendarView } from '@/components/CalendarView';
 import { RepairView } from '@/components/RepairView';
 import { ProfileView } from '@/components/ProfileView';
 import { AdminView } from '@/components/AdminView';
-import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogOut, LogIn, LockKeyhole } from 'lucide-react';
+import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogOut, LogIn, LockKeyhole, Trophy } from 'lucide-react';
+import { LeaderboardView } from '@/components/LeaderboardView';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SignInWithBaseButton } from '@base-org/account-ui/react';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'discord' | 'call' | 'calendar' | 'integrations' | 'repair' | 'profile' | 'admin'>('discord');
+  const [activeTab, setActiveTab] = useState<'discord' | 'call' | 'calendar' | 'integrations' | 'repair' | 'profile' | 'admin' | 'leaderboard'>('discord');
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [connectedIntegrations, setConnectedIntegrations] = useState<Record<string, boolean>>({});
   const { address, signIn, signOut, isLoading } = useAuth();
@@ -103,6 +104,7 @@ export default function Home() {
     { id: 'calendar' as const, label: 'Calendar', icon: <Calendar className="w-5 h-5" /> },
     { id: 'integrations' as const, label: 'Connect', icon: <Plug className="w-5 h-5" /> },
     { id: 'profile' as const, label: 'Profile', icon: <User className="w-5 h-5" /> },
+    { id: 'leaderboard' as const, label: 'Ranks', icon: <Trophy className="w-5 h-5" /> },
     { id: 'admin' as const, label: 'Admin', icon: <Shield className="w-5 h-5" /> },
   ];
 
@@ -159,7 +161,7 @@ export default function Home() {
       <div className="flex-1 flex flex-col min-w-0 bg-zinc-950">
 
         {/* Top Header Bar */}
-        <div className="flex-shrink-0 flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-white/5 bg-zinc-950 z-10">
+        <div className="relative flex-shrink-0 flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-white/5 bg-zinc-950 z-10">
           <div className="flex items-center gap-2">
             {/* Logo visible on mobile where left nav is hidden */}
             <div className="flex md:hidden w-8 h-8 bg-indigo-500 rounded-lg items-center justify-center shrink-0">
@@ -167,6 +169,20 @@ export default function Home() {
             </div>
             <span className="text-sm font-medium text-zinc-500 tracking-wide">DevReLive</span>
           </div>
+
+          {/* ── Leaderboard button — centred in the header ── */}
+          <button
+            onClick={() => setActiveTab('leaderboard')}
+            className={`absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+              activeTab === 'leaderboard'
+                ? 'bg-yellow-400/20 border-yellow-400/40 text-yellow-300'
+                : 'bg-yellow-400/10 hover:bg-yellow-400/20 border-yellow-400/20 hover:border-yellow-400/40 text-yellow-400'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Leaderboard</span>
+          </button>
+
           <div className="flex items-center gap-2 md:gap-3">
             {address ? (
               <>
@@ -214,6 +230,7 @@ export default function Home() {
             >
               <DiscordView 
                 isTelegramConnected={connectedIntegrations['telegram'] || false}
+                onNavigateToRepair={() => setActiveTab('repair')}
                 onStartCall={(title, context) => handleCall({ 
                 id: 'discord-' + Date.now(), 
                 name: title.length > 20 ? title.substring(0, 20) + '...' : title, 
@@ -276,6 +293,17 @@ export default function Home() {
               className="absolute inset-0"
             >
               {!address ? <SignInGate label="Admin" /> : <AdminView />}
+            </motion.div>
+          ) : activeTab === 'leaderboard' ? (
+            <motion.div
+              key="leaderboard"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0"
+            >
+              <LeaderboardView />
             </motion.div>
           ) : activeTab === 'call' && !address ? (
             <motion.div
