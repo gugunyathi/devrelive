@@ -12,12 +12,13 @@ import { RepairView } from '@/components/RepairView';
 import { ProfileView } from '@/components/ProfileView';
 import { AdminView } from '@/components/AdminView';
 import { LeaderboardView } from '@/components/LeaderboardView';
-import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogOut, LogIn, LockKeyhole, Trophy } from 'lucide-react';
+import { Bot, Code2, PhoneCall, ShieldCheck, Zap, Plug, Phone, MessageSquare, Calendar, Wrench, User, Shield, LogOut, LogIn, LockKeyhole, Trophy, Settings } from 'lucide-react';
+import { SettingsView } from '@/components/SettingsView';
 import { SignInWithBaseButton } from '@base-org/account-ui/react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'discord' | 'call' | 'calendar' | 'integrations' | 'repair' | 'profile' | 'admin' | 'leaderboard'>('discord');
+  const [activeTab, setActiveTab] = useState<'discord' | 'call' | 'calendar' | 'integrations' | 'repair' | 'profile' | 'admin' | 'leaderboard' | 'settings'>('discord');
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [connectedIntegrations, setConnectedIntegrations] = useState<Record<string, boolean>>({});
   const { address, signIn, signOut, isLoading } = useAuth();
@@ -106,6 +107,16 @@ export default function Home() {
     { id: 'profile' as const, label: 'Profile', icon: <User className="w-5 h-5" /> },
     { id: 'leaderboard' as const, label: 'Ranks', icon: <Trophy className="w-5 h-5" /> },
     { id: 'admin' as const, label: 'Admin', icon: <Shield className="w-5 h-5" /> },
+  ];
+
+  // Mobile bottom bar — trimmed to 6 items to avoid covering the chat input
+  const MOBILE_NAV_ITEMS = [
+    { id: 'discord' as const, label: 'Discord', icon: NAV_ITEMS[0].icon },
+    { id: 'repair' as const, label: 'Repair', icon: <Wrench className="w-5 h-5" /> },
+    { id: 'call' as const, label: 'Calls', icon: <Phone className="w-5 h-5" /> },
+    { id: 'calendar' as const, label: 'Calendar', icon: <Calendar className="w-5 h-5" /> },
+    { id: 'leaderboard' as const, label: 'Ranks', icon: <Trophy className="w-5 h-5" /> },
+    { id: 'settings' as const, label: 'Settings', icon: <Settings className="w-5 h-5" /> },
   ];
 
   return (
@@ -272,6 +283,17 @@ export default function Home() {
             >
               {!address ? <SignInGate label="Integrations" /> : <Integrations connected={connectedIntegrations} setConnected={setConnectedIntegrations} />}
             </motion.div>
+          ) : activeTab === 'settings' ? (
+            <motion.div
+              key="settings"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0"
+            >
+              <SettingsView onNavigate={(tab) => setActiveTab(tab)} />
+            </motion.div>
           ) : activeTab === 'profile' ? (
             <motion.div
               key="profile"
@@ -395,7 +417,7 @@ export default function Home() {
 
       {/* ── Mobile Bottom Navigation (hidden on md+) ── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-950/95 backdrop-blur-md border-t border-white/10 flex items-center justify-around py-1 pb-[calc(0.25rem+env(safe-area-inset-bottom,0px))] z-50">
-        {NAV_ITEMS.map(item => (
+        {MOBILE_NAV_ITEMS.map(item => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
