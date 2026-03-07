@@ -347,7 +347,7 @@ export default function Home() {
               transition={{ duration: 0.3 }}
               className="absolute inset-0"
             >
-              <ActiveCall channel={activeChannel} onEndCall={handleEndCall} isJoinedViaLink={isJoinedViaLink} />
+              <ActiveCall channel={activeChannel} onEndCall={handleEndCall} isJoinedViaLink={isJoinedViaLink} maxDurationSecs={activeChannel.maxDurationSecs} />
             </motion.div>
           ) : (
             <motion.div

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Phone, Hash, Code, Server, User, Box, Bot, MessageSquare, Lock, Wrench } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '@/contexts/AuthContext';
-import { PaymentGate } from './PaymentGate';
+import { CallGate } from './CallGate';
 
 export interface Channel {
   id: string;
@@ -10,6 +10,7 @@ export interface Channel {
   icon: React.ReactNode;
   number: string;
   context?: string;
+  maxDurationSecs?: number;
 }
 
 export const CHANNELS: Channel[] = [
@@ -33,14 +34,15 @@ export function CallPad({ onCall, onRepair, activeChannelId }: CallPadProps) {
 
   return (
     <div className="w-full bg-zinc-950 border-r border-white/10 h-full flex flex-col">
-      <PaymentGate
+      <CallGate
         open={!!pendingChannel}
-        amount="1.00"
-        title={`Call ${pendingChannel?.name ?? ''}`}
-        description="One live DevRel support call session"
-        purpose="call"
+        channelName={pendingChannel?.name ?? ''}
         userAddress={address}
-        onSuccess={() => { const ch = pendingChannel!; setPendingChannel(null); onCall(ch); }}
+        onStart={(maxDurationSecs) => {
+          const ch = { ...pendingChannel!, maxDurationSecs };
+          setPendingChannel(null);
+          onCall(ch);
+        }}
         onClose={() => setPendingChannel(null)}
       />
       <div className="p-6 border-b border-white/10">

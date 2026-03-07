@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { PhoneOff, MonitorUp, MonitorOff, Mic, MicOff, Video, VideoOff, Send, Link, Users, LogOut } from 'lucide-react';
+import { PhoneOff, MonitorUp, MonitorOff, Mic, MicOff, Video, VideoOff, Send, Link, Users, LogOut, Clock } from 'lucide-react';
 import { useGeminiLive } from '@/hooks/use-gemini-live';
 import { Channel } from './CallPad';
 
@@ -64,9 +64,10 @@ interface ActiveCallProps {
   channel: Channel;
   onEndCall: () => void;
   isJoinedViaLink?: boolean;
+  maxDurationSecs?: number;  // undefined = unlimited
 }
 
-export function ActiveCall({ channel, onEndCall, isJoinedViaLink }: ActiveCallProps) {
+export function ActiveCall({ channel, onEndCall, isJoinedViaLink, maxDurationSecs }: ActiveCallProps) {
   const { address, userId } = useAuth();
   const { isConnected, isConnecting, error, transcript, connect, disconnect, sendScreenFrame, sendTextMessage } = useGeminiLive(channel.name, channel.context);
   
@@ -78,6 +79,88 @@ export function ActiveCall({ channel, onEndCall, isJoinedViaLink }: ActiveCallPr
   const [chatInput, setChatInput] = useState('');
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
+  // ── Hoisted state/refs needed by endCallAndSave ──────────────
+  const callStartTime = useRef<Date>(new Date());
+  const [participants, setParticipants] = useState([
+    { id: 'ai', name: 'DevRel Assistant', role: 'AI', avatar: 'AI' }
+  ]);
+  const [isRequestingHuman, setIsRequestingHuman] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const hasHumanDevRel = participants.some(p => p.role === 'Human');
+
+  // ── Countdown timer ──────────────────────────────────────────
+  const [secsLeft, setSecsLeft] = useState<number | null>(maxDurationSecs ?? null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const endCallAndSave = useCallback(async (expired = false) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    const endTime = new Date();
+    const durationSeconds = Math.round((endTime.getTime() - callStartTime.current.getTime()) / 1000);
+
+    if (!isJoinedViaLink && transcript.length > 0) {
+      const savedCalls = JSON.parse(localStorage.getItem('devrelive_calls') || '[]');
+      savedCalls.push({
+        id: Date.now().toString(),
+        channelName: channel.name,
+        date: callStartTime.current.toISOString(),
+        duration: durationSeconds,
+        hasHumanDevRel,
+        transcript,
+        expired,
+      });
+      localStorage.setItem('devrelive_calls', JSON.stringify(savedCalls));
+
+      try {
+        await fetch('/api/calls', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            channelName: channel.name,
+            topic: channel.context ?? channel.name,
+            hostAddress: address ?? 'anonymous',
+            hostUserId: userId ?? undefined,
+            participants: participants.map(p => ({
+              address: p.id.startsWith('0x') ? p.id : undefined,
+              role: p.role === 'AI' ? 'devrel' : p.role === 'Human' ? 'devrel' : p.role === 'Team' ? 'guest' : 'host',
+            })),
+            startTime: callStartTime.current.toISOString(),
+            endTime: endTime.toISOString(),
+            duration: durationSeconds,
+            hasHumanDevRel,
+            transcript: transcript.map(t => ({ role: t.role, text: t.text, timestamp: new Date() })),
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to save call to DB:', err);
+      }
+    }
+    onEndCall();
+  }, [address, userId, channel, transcript, hasHumanDevRel, isJoinedViaLink, onEndCall]);
+
+  useEffect(() => {
+    if (!maxDurationSecs) return;
+    setSecsLeft(maxDurationSecs);
+    timerRef.current = setInterval(() => {
+      setSecsLeft(prev => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          // Will auto-end in a moment
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxDurationSecs]);
+
+  // When countdown hits zero, save & end
+  useEffect(() => {
+    if (secsLeft === 0) {
+      endCallAndSave(true);
+    }
+  }, [secsLeft, endCallAndSave]);
+
   const screenVideoRef = useRef<HTMLVideoElement>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -85,16 +168,6 @@ export function ActiveCall({ channel, onEndCall, isJoinedViaLink }: ActiveCallPr
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-
-  const callStartTime = useRef<Date>(new Date());
-
-  const [participants, setParticipants] = useState([
-    { id: 'ai', name: 'DevRel Assistant', role: 'AI', avatar: 'AI' }
-  ]);
-  const [isRequestingHuman, setIsRequestingHuman] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
-
-  const hasHumanDevRel = participants.some(p => p.role === 'Human');
 
   const requestHumanDevRel = () => {
     setIsRequestingHuman(true);
@@ -274,6 +347,15 @@ export function ActiveCall({ channel, onEndCall, isJoinedViaLink }: ActiveCallPr
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
+          {/* Countdown badge */}
+          {secsLeft !== null && (
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-mono font-medium ${
+              secsLeft <= 30 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-zinc-800 text-zinc-300 border border-white/8'
+            }`}>
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              {Math.floor(secsLeft / 60)}:{String(secsLeft % 60).padStart(2, '0')}
+            </div>
+          )}
           <button
             onClick={shareLink}
             className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium flex items-center justify-center gap-2 transition-colors"
@@ -291,6 +373,16 @@ export function ActiveCall({ channel, onEndCall, isJoinedViaLink }: ActiveCallPr
           </button>
         </div>
       </div>
+
+      {/* ⏱ Countdown warning banner */}
+      {secsLeft !== null && secsLeft <= 30 && secsLeft > 0 && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex items-center justify-center gap-2">
+          <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="text-amber-300 text-sm font-medium">
+            {secsLeft}s remaining — call will end automatically
+          </span>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 p-6 flex flex-col lg:flex-row gap-6 overflow-hidden">
@@ -452,54 +544,7 @@ export function ActiveCall({ channel, onEndCall, isJoinedViaLink }: ActiveCallPr
 
         {!isJoinedViaLink && (
           <button
-            onClick={async () => {
-              const endTime = new Date();
-              const durationSeconds = Math.round((endTime.getTime() - callStartTime.current.getTime()) / 1000);
-
-              if (transcript.length > 0) {
-                // Persist locally as fallback
-                const savedCalls = JSON.parse(localStorage.getItem('devrelive_calls') || '[]');
-                savedCalls.push({
-                  id: Date.now().toString(),
-                  channelName: channel.name,
-                  date: callStartTime.current.toISOString(),
-                  duration: durationSeconds,
-                  hasHumanDevRel,
-                  transcript,
-                });
-                localStorage.setItem('devrelive_calls', JSON.stringify(savedCalls));
-
-                // Persist to MongoDB with full metadata
-                try {
-                  await fetch('/api/calls', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      channelName: channel.name,
-                      topic: channel.context ?? channel.name,
-                      hostAddress: address ?? 'anonymous',
-                      hostUserId: userId ?? undefined,
-                      participants: participants.map(p => ({
-                        address: p.id.startsWith('0x') ? p.id : undefined,
-                        role: p.role === 'AI' ? 'devrel' : p.role === 'Human' ? 'devrel' : p.role === 'Team' ? 'guest' : 'host',
-                      })),
-                      startTime: callStartTime.current.toISOString(),
-                      endTime: endTime.toISOString(),
-                      duration: durationSeconds,
-                      hasHumanDevRel,
-                      transcript: transcript.map(t => ({
-                        role: t.role,
-                        text: t.text,
-                        timestamp: new Date(),
-                      })),
-                    }),
-                  });
-                } catch (err) {
-                  console.error('Failed to save call to DB:', err);
-                }
-              }
-              onEndCall();
-            }}
+            onClick={() => endCallAndSave(false)}
             className="px-4 sm:px-6 h-12 sm:h-14 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center gap-2 transition-colors text-sm sm:text-base"
           >
             <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
