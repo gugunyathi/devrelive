@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     status: entry.status,
+    telegramUserId: entry.telegramUserId,
     telegramUsername: entry.telegramUsername,
     telegramFirstName: entry.telegramFirstName,
   });

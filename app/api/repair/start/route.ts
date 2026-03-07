@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import Anthropic from '@anthropic-ai/sdk';
 import dbConnect from '@/lib/mongodb';
 import RepairHistory from '@/models/RepairHistory';
+import { sendTelegramNotification } from '@/lib/telegram';
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 const GITHUB_API = 'https://api.github.com';
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { appUrl, repoUrl } = body as { appUrl?: string; repoUrl?: string };
+  const { appUrl, repoUrl, address } = body as { appUrl?: string; repoUrl?: string; address?: string };
 
   if (!appUrl?.trim() || !repoUrl?.trim()) {
     return new Response(JSON.stringify({ error: 'Both appUrl and repoUrl are required.' }), {
@@ -437,6 +438,17 @@ ${filesXml}
           .catch((e) => console.error('[RepairHistory] DB save failed:', e));
 
         send(controller, { step: 5, title: 'Repair Complete', status: 'complete', report: reportData });
+
+        // Fire-and-forget Telegram notification if user address provided
+        if (address) {
+          const statusLabel = successCount === 0 ? 'No fixes committed' : `${successCount}/${validFixes.length} fix${validFixes.length !== 1 ? 'es' : ''} applied`;
+          sendTelegramNotification(
+            address,
+            `🔧 <b>Repair Complete</b>\n\nRepo: <code>${owner}/${repo}</code>\n${statusLabel}\n\n<a href="${reportData.commitUrl}">View commits →</a>`,
+            'HTML'
+          ).catch(() => {});
+        }
+
         controller.close();
       } catch (err: unknown) {
         send(controller, {

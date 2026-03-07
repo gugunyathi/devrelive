@@ -17,6 +17,7 @@ export function Integrations({ connected, setConnected }: { connected: Record<st
   const { address } = useAuth();
   const [connecting, setConnecting] = useState<string | null>(null);
   const [telegramPending, setTelegramPending] = useState<{ token: string; botUrl: string } | null>(null);
+  const [integrationMeta, setIntegrationMeta] = useState<Record<string, Record<string, unknown>>>({});
   const telegramPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load persisted integration state from API on mount
@@ -30,6 +31,7 @@ export function Integrations({ connected, setConnected }: { connected: Record<st
           if (data.connected && Object.keys(data.connected).length > 0) {
             setConnected(prev => ({ ...prev, ...data.connected }));
           }
+          if (data.meta) setIntegrationMeta(data.meta);
         }
       } catch {
         // Use local state as fallback
@@ -43,6 +45,7 @@ export function Integrations({ connected, setConnected }: { connected: Record<st
 
     if (connected[id]) {
       setConnected(prev => ({ ...prev, [id]: false }));
+      setIntegrationMeta(prev => { const next = { ...prev }; delete next[id]; return next; });
       // Persist disconnect
       if (address) {
         try {
@@ -80,11 +83,17 @@ export function Integrations({ connected, setConnected }: { connected: Record<st
                 setTelegramPending(null);
                 setConnecting(null);
                 setConnected(prev => ({ ...prev, telegram: true }));
+                const meta = {
+                  telegramUserId: pollData.telegramUserId,
+                  telegramUsername: pollData.telegramUsername ?? null,
+                  telegramFirstName: pollData.telegramFirstName ?? null,
+                };
+                setIntegrationMeta(prev => ({ ...prev, telegram: meta }));
                 if (address) {
                   await fetch('/api/integrations', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ address, integrationId: 'telegram', connected: true }),
+                    body: JSON.stringify({ address, integrationId: 'telegram', connected: true, meta }),
                   }).catch(() => {});
                 }
               } else if (pollData.status === 'expired') {
@@ -138,6 +147,10 @@ export function Integrations({ connected, setConnected }: { connected: Record<st
           {INTEGRATIONS.map((integration) => {
             const isConnected = connected[integration.id];
             const isConnecting = connecting === integration.id;
+            const meta = integrationMeta[integration.id] ?? {};
+            const tgUsername = integration.id === 'telegram'
+              ? (meta.telegramUsername as string | undefined) ?? (meta.telegramFirstName as string | undefined)
+              : undefined;
 
             return (
               <motion.div
@@ -154,7 +167,7 @@ export function Integrations({ connected, setConnected }: { connected: Record<st
                     {integration.icon}
                   </div>
                   
-                  {isConnected && (
+                {isConnected && (
                     <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-medium border border-emerald-500/20">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       Connected
@@ -166,6 +179,16 @@ export function Integrations({ connected, setConnected }: { connected: Record<st
                 <p className="text-zinc-400 text-sm flex-1 mb-3">
                   {integration.description}
                 </p>
+
+                {/* Telegram: show connected account */}
+                {integration.id === 'telegram' && isConnected && tgUsername && (
+                  <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-[#229ED9]/10 border border-[#229ED9]/20 text-xs text-[#229ED9]">
+                    <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span className="font-medium truncate">
+                      {tgUsername.startsWith('@') ? tgUsername : `@${tgUsername}`}
+                    </span>
+                  </div>
+                )}
 
                 {integration.id === 'telegram' && telegramPending && (
                   <div className="mb-4 p-3 rounded-xl bg-[#229ED9]/10 border border-[#229ED9]/30 text-xs text-[#229ED9] leading-relaxed">

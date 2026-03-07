@@ -7,6 +7,8 @@ const IntegrationSchema = new mongoose.Schema(
     connected: { type: Boolean, default: true },
     connectedAt: { type: Date, default: Date.now },
     disconnectedAt: { type: Date },
+    // Per-integration metadata (e.g. telegramUserId, telegramUsername, guildId, etc.)
+    meta: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }
 );
@@ -14,6 +16,8 @@ const IntegrationSchema = new mongoose.Schema(
 // One integration per user per service
 IntegrationSchema.index({ userAddress: 1, integrationId: 1 }, { unique: true });
 IntegrationSchema.index({ integrationId: 1 });
+// Allow looking up by Telegram user ID for incoming messages
+IntegrationSchema.index({ 'meta.telegramUserId': 1 }, { sparse: true });
 
 export interface IIntegration {
   userAddress: string;
@@ -21,6 +25,7 @@ export interface IIntegration {
   connected: boolean;
   connectedAt: Date;
   disconnectedAt?: Date;
+  meta: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }

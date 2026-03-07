@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import WalletSession from '@/models/WalletSession';
+import { sendTelegramNotification } from '@/lib/telegram';
 
 type Params = { params: Promise<{ sessionId: string }> };
 
@@ -31,6 +32,16 @@ export async function PUT(_req: Request, { params }: Params) {
         },
       }
     );
+
+    // Fire-and-forget Telegram notification
+    const mins = Math.floor(durationSeconds / 60);
+    const secs = durationSeconds % 60;
+    const durationLabel = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    sendTelegramNotification(
+      session.address,
+      `📞 <b>Session Ended</b>\n\nYour DevReLive session has ended.\nDuration: <b>${durationLabel}</b>`,
+      'HTML'
+    ).catch(() => {});
 
     return NextResponse.json({ ok: true, duration: durationSeconds }, { status: 200 });
   } catch (err) {

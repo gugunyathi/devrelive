@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { telegramTokens } from '@/lib/telegram-store';
+import dbConnect from '@/lib/mongodb';
+import Integration from '@/models/Integration';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? '';
 
@@ -37,6 +39,31 @@ export async function POST(req: NextRequest) {
         entry.telegramUsername = from?.username;
         entry.telegramFirstName = from?.first_name;
 
+        // Persist to MongoDB
+        try {
+          await dbConnect();
+          await Integration.findOneAndUpdate(
+            { userAddress: entry.address.toLowerCase(), integrationId: 'telegram' },
+            {
+              $set: {
+                connected: true,
+                connectedAt: new Date(),
+                disconnectedAt: null,
+                meta: {
+                  telegramUserId: from?.id,
+                  telegramUsername: from?.username ?? null,
+                  telegramFirstName: from?.first_name ?? null,
+                  telegramLastName: from?.last_name ?? null,
+                },
+              },
+              $setOnInsert: { userAddress: entry.address.toLowerCase(), integrationId: 'telegram' },
+            },
+            { upsert: true, new: true }
+          );
+        } catch (dbErr) {
+          console.error('[telegram callback] DB save failed:', dbErr);
+        }
+
         // Reply to the user
         if (BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -44,7 +71,8 @@ export async function POST(req: NextRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: from.id,
-              text: `✅ Connected! Your Telegram account has been linked to DevReLive.\n\nWelcome, ${from?.first_name ?? from?.username ?? 'developer'}!`,
+              parse_mode: 'HTML',
+              text: `✅ <b>Connected!</b>\n\nYour Telegram account has been linked to DevReLive.\n\nWelcome, <b>${from?.first_name ?? from?.username ?? 'developer'}</b>! 🚀\n\nYou'll now receive notifications here for:\n• Live call invitations\n• Issue escalations\n• Repair job completions`,
             }),
           }).catch(() => {});
         }

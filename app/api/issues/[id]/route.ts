@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Issue from '@/models/Issue';
+import { sendTelegramNotification } from '@/lib/telegram';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -44,6 +45,21 @@ export async function PUT(req: Request, { params }: Params) {
     );
 
     if (!issue) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    // Fire-and-forget Telegram notifications on key status transitions
+    if (body.status === 'resolved') {
+      sendTelegramNotification(
+        issue.address,
+        `✅ <b>Issue Resolved</b>\n\n<b>${issue.topic}</b>\n\n${issue.resolution ? `Resolution: ${issue.resolution}` : ''}`,
+        'HTML'
+      ).catch(() => {});
+    } else if (body.status === 'escalated') {
+      sendTelegramNotification(
+        issue.address,
+        `⚠️ <b>Issue Escalated</b>\n\n<b>${issue.topic}</b>\n\nYour issue has been escalated for urgent attention.`,
+        'HTML'
+      ).catch(() => {});
+    }
 
     return NextResponse.json({ issue }, { status: 200 });
   } catch (err) {
