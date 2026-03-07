@@ -218,6 +218,7 @@ export function CalendarView() {
                         <p className="text-zinc-400 text-sm flex items-center gap-2 mt-1">
                           <Clock className="w-4 h-4" />
                           {new Date(call.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          <span className="text-zinc-600 text-xs ml-1">({new Date(call.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' })})</span>
                           {' · '}{call.durationMinutes} min
                           {call.devrel ? ` · with DevRel ${call.devrel}` : ''}
                         </p>

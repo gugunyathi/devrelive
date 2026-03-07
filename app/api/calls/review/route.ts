@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import Anthropic from '@anthropic-ai/sdk';
+import connectMongo from '@/lib/mongodb';
+import CallHistory from '@/models/CallHistory';
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 const GITHUB_API = 'https://api.github.com';
@@ -103,9 +105,10 @@ export async function POST(req: NextRequest) {
     files?: string[];
     question?: string;
     mode: 'context' | 'review';
+    callId?: string;
   };
 
-  const { repoUrl, files, question, mode } = body;
+  const { repoUrl, files, question, mode, callId } = body;
 
   const parsed = parseRepoUrl(repoUrl);
   if (!parsed) return Response.json({ error: 'Invalid GitHub repository URL' }, { status: 400 });
@@ -183,7 +186,7 @@ export async function POST(req: NextRequest) {
 
       try {
         const claudeStream = anthropic.messages.stream({
-          model: 'claude-sonnet-4-5',
+          model: 'claude-sonnet-4-6',
           max_tokens: 2048,
           messages: [
             {
@@ -205,12 +208,24 @@ Keep it concise — this is a live call. Use markdown formatting.`,
           ],
         });
 
+        let fullReviewText = '';
         for await (const event of claudeStream) {
           if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+            fullReviewText += event.delta.text;
             send({ text: event.delta.text });
           }
         }
         send({ done: true });
+
+        // Persist review to CallHistory if a callId was provided
+        if (callId && fullReviewText) {
+          connectMongo().then(() =>
+            CallHistory.updateOne(
+              { callId },
+              { $push: { codeReviews: { repoUrl, reviewText: fullReviewText, reviewedAt: new Date() } } }
+            )
+          ).catch(() => {});
+        }
       } catch (e) {
         send({ error: String(e) });
       } finally {

@@ -19,7 +19,8 @@
 import { createWalletClient, custom, http } from 'viem';
 import { base } from 'viem/chains';
 import { createPaymasterClient } from 'viem/account-abstraction';
-import { DATA_SUFFIX } from './builder-code';
+import { Attribution } from 'ox/erc8021';
+import { BUILDER_CODE } from './builder-code';
 
 /** CDP Paymaster RPC URL — exposed client-side via NEXT_PUBLIC_ prefix */
 export const PAYMASTER_URL =
@@ -38,9 +39,17 @@ export function getPaymasterClient() {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createAttributedWalletClient(provider: any) {
+  // Read user-entered builder code at call time; fall back to env var
+  const runtimeCode =
+    (typeof window !== 'undefined'
+      ? localStorage.getItem('devrelive_builder_code')
+      : null) ?? BUILDER_CODE;
+  const dataSuffix: `0x${string}` | undefined = runtimeCode
+    ? Attribution.toDataSuffix({ codes: [runtimeCode] })
+    : undefined;
   return createWalletClient({
     chain: base,
     transport: custom(provider),
-    dataSuffix: DATA_SUFFIX,
+    dataSuffix,
   });
 }

@@ -695,16 +695,24 @@ export function DiscordView({ onStartCall, onNavigateToRepair, isTelegramConnect
 
             {/* Tags Row */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar shrink-0">
-              <button
-                onClick={() => setShowUnresolvedOnly(v => !v)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium border whitespace-nowrap transition-colors ${
-                  showUnresolvedOnly
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                    : 'bg-[#2B2D31] hover:bg-[#3F4147] text-[#DBDEE1] border-[#1E1F22]/50'
-                }`}
-              >
-                Unresolved
-              </button>
+              {(() => {
+                const unresolvedCount = posts.filter(p => p.channelId === activeChannel && !p.resolved).length;
+                return (
+                  <button
+                    onClick={() => setShowUnresolvedOnly(v => !v)}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium border whitespace-nowrap transition-colors ${
+                      showUnresolvedOnly
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        : 'bg-[#2B2D31] hover:bg-[#3F4147] text-[#DBDEE1] border-[#1E1F22]/50'
+                    }`}
+                  >
+                    Unresolved
+                    {unresolvedCount > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-amber-500/30 text-amber-300">{unresolvedCount}</span>
+                    )}
+                  </button>
+                );
+              })()}
               <button className="flex items-center gap-1 px-3 py-1.5 bg-[#2B2D31] hover:bg-[#3F4147] rounded-lg text-sm font-medium text-[#DBDEE1] border border-[#1E1F22]/50 whitespace-nowrap">
                 <span className="text-[#949BA4]">↑↓</span> Sort & View <ChevronDown className="w-4 h-4 ml-1" />
               </button>

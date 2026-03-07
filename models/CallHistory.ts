@@ -57,6 +57,15 @@ const CallHistorySchema = new mongoose.Schema(
     resolution: { type: String }, // summary of how the issue was resolved
     hasHumanDevRel: { type: Boolean, default: false },
     escalatedTo: { type: String }, // devrel userId if escalated
+
+    // Code review sessions linked to this call
+    codeReviews: [
+      {
+        repoUrl: { type: String },
+        reviewText: { type: String },
+        reviewedAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );
@@ -87,6 +96,7 @@ export interface ICallHistory {
   resolution?: string;
   hasHumanDevRel: boolean;
   escalatedTo?: string;
+  codeReviews?: { repoUrl: string; reviewText: string; reviewedAt: Date }[];
   createdAt: Date;
   updatedAt: Date;
 }

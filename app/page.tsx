@@ -208,9 +208,13 @@ export default function Home() {
           <div className="flex items-center gap-2 md:gap-3">
             {address ? (
               <>
-                <span className="hidden sm:inline text-xs font-mono text-zinc-400 bg-zinc-900 px-2 md:px-3 py-1.5 rounded-lg border border-white/5">
-                  {address.slice(0, 6)}…{address.slice(-4)}
-                </span>
+                <button onClick={() => setActiveTab('profile')} className="hidden sm:flex items-center gap-2 text-xs font-mono text-zinc-400 bg-zinc-900 px-2 md:px-3 py-1.5 rounded-lg border border-white/5 hover:bg-zinc-800 transition-colors">
+                  {farcasterUser?.pfpUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={farcasterUser.pfpUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                  ) : null}
+                  {farcasterUser?.displayName ?? `${address.slice(0, 6)}…${address.slice(-4)}`}
+                </button>
                 <button
                   onClick={signOut}
                   className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors px-2 md:px-3 py-1.5 rounded-lg hover:bg-zinc-800"
@@ -314,7 +318,7 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
-              {!address ? <SignInGate label="Profile" /> : <ProfileView />}
+              {!address ? <SignInGate label="Profile" /> : <ProfileView farcasterUser={farcasterUser} />}
             </motion.div>
           ) : activeTab === 'admin' ? (
             <motion.div

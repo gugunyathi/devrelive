@@ -1,0 +1,11 @@
+{
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.disableAutomaticTypeAcquisition": false,
+  "search.exclude": {
+    "**/node_modules": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true
+  }
+}

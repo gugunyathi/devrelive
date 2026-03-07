@@ -101,6 +101,24 @@ export function AdminView() {
   const [issuesLoading, setIssuesLoading] = useState(false);
   const { address, signIn } = useAuth();
 
+  const handleExportCsv = () => {
+    const displayCallsSnap = liveCalls ?? MOCK_CALLS;
+    const headers = ['Call ID', 'User', 'Topic', 'Duration', 'Status', 'Time'];
+    const rows = displayCallsSnap.map((c) => [
+      c.id, c.user, c.topic.replace(/,/g, ';'), c.duration, c.status, c.date,
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map((v) => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `devrelive-calls-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const fetchStats = useCallback(async () => {
     if (!address) return;
     setStatsLoading(true);
@@ -410,7 +428,7 @@ export function AdminView() {
           >
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">All Call History</h2>
-              <button className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium transition-colors">
+              <button onClick={handleExportCsv} className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium transition-colors">
                 Export CSV
               </button>
             </div>

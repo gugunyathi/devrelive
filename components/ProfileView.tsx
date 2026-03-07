@@ -1,7 +1,14 @@
 'use client';
 import React, { useEffect, useState, useCallback } from 'react';
+import Image from 'next/image';
 import { User, Clock, MessageSquare, Calendar, ChevronDown, ChevronUp, LogOut, LogIn, RefreshCw, BadgeCheck, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+
+interface FarcasterUser {
+  fid?: number;
+  displayName?: string;
+  pfpUrl?: string;
+}
 
 interface TranscriptEntry {
   role: 'user' | 'ai' | 'devrel' | 'guest';
@@ -57,7 +64,7 @@ function formatDuration(seconds?: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function ProfileView() {
+export function ProfileView({ farcasterUser }: { farcasterUser?: FarcasterUser | null }) {
   const { address, userId, userData, signIn, signOut, refreshUser } = useAuth();
   const [calls, setCalls] = useState<SavedCall[]>([]);
   const [expandedCallId, setExpandedCallId] = useState<string | null>(null);
@@ -121,13 +128,17 @@ export function ProfileView() {
       {/* Header */}
       <div className="p-4 sm:p-8 border-b border-white/10 bg-zinc-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4 sm:gap-6">
-          <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-            <User className="w-7 h-7 sm:w-10 sm:h-10 text-indigo-400" />
+          <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0 overflow-hidden">
+            {farcasterUser?.pfpUrl ? (
+              <Image src={farcasterUser.pfpUrl} alt={farcasterUser.displayName ?? 'Profile'} width={80} height={80} className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-7 h-7 sm:w-10 sm:h-10 text-indigo-400" />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-3xl font-bold tracking-tight">
-                {userData?.username ?? 'Developer Profile'}
+                {farcasterUser?.displayName ?? userData?.username ?? 'Developer Profile'}
               </h1>
               {userData?.isAdmin && (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs font-medium border border-amber-500/30">
@@ -139,6 +150,7 @@ export function ProfileView() {
               <>
                 <p className="text-zinc-400 mt-1 font-mono text-sm">{address.slice(0, 6)}…{address.slice(-4)}</p>
                 {userId && <p className="text-zinc-600 text-xs mt-0.5 font-mono">{userId}</p>}
+                {farcasterUser?.fid && <p className="text-zinc-500 text-xs mt-0.5">Farcaster FID: {farcasterUser.fid}</p>}
               </>
             ) : (
               <p className="text-zinc-400 mt-1">Sign in to view your profile and history.</p>

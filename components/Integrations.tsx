@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Github, Slack, Twitter, MessageCircle, MessageSquare, Link as LinkIcon, CheckCircle2, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +16,8 @@ const INTEGRATIONS = [
 export function Integrations({ connected, setConnected }: { connected: Record<string, boolean>, setConnected: React.Dispatch<React.SetStateAction<Record<string, boolean>>> }) {
   const { address } = useAuth();
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [telegramPending, setTelegramPending] = useState<{ token: string; botUrl: string } | null>(null);
+  const telegramPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load persisted integration state from API on mount
   useEffect(() => {
@@ -55,7 +57,57 @@ export function Integrations({ connected, setConnected }: { connected: Record<st
     }
 
     setConnecting(id);
-    // Simulate OAuth delay
+
+    // Telegram: use real bot deep-link + polling
+    if (id === 'telegram') {
+      try {
+        const res = await fetch('/api/auth/telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address }),
+        });
+        const data = await res.json();
+        if (data.token && data.botUrl) {
+          setTelegramPending({ token: data.token, botUrl: data.botUrl });
+          window.open(data.botUrl, '_blank', 'noopener,noreferrer');
+          // Poll every 2s for up to 5 min
+          telegramPollRef.current = setInterval(async () => {
+            try {
+              const poll = await fetch(`/api/auth/telegram?token=${data.token}`);
+              const pollData = await poll.json();
+              if (pollData.status === 'confirmed') {
+                clearInterval(telegramPollRef.current!);
+                setTelegramPending(null);
+                setConnecting(null);
+                setConnected(prev => ({ ...prev, telegram: true }));
+                if (address) {
+                  await fetch('/api/integrations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address, integrationId: 'telegram', connected: true }),
+                  }).catch(() => {});
+                }
+              } else if (pollData.status === 'expired') {
+                clearInterval(telegramPollRef.current!);
+                setTelegramPending(null);
+                setConnecting(null);
+              }
+            } catch { /* ignore */ }
+          }, 2000);
+          // Stop polling after 5 minutes
+          setTimeout(() => {
+            clearInterval(telegramPollRef.current!);
+            setTelegramPending(null);
+            setConnecting(null);
+          }, 5 * 60 * 1000);
+        }
+      } catch {
+        setConnecting(null);
+      }
+      return;
+    }
+
+    // Other integrations: simulate OAuth delay
     setTimeout(async () => {
       setConnected(prev => ({ ...prev, [id]: true }));
       setConnecting(null);
@@ -111,9 +163,17 @@ export function Integrations({ connected, setConnected }: { connected: Record<st
                 </div>
 
                 <h3 className="text-xl font-semibold text-white mb-2">{integration.name}</h3>
-                <p className="text-zinc-400 text-sm flex-1 mb-8">
+                <p className="text-zinc-400 text-sm flex-1 mb-3">
                   {integration.description}
                 </p>
+
+                {integration.id === 'telegram' && telegramPending && (
+                  <div className="mb-4 p-3 rounded-xl bg-[#229ED9]/10 border border-[#229ED9]/30 text-xs text-[#229ED9] leading-relaxed">
+                    <p className="font-semibold mb-1">1. Telegram opened — don&apos;t close it.</p>
+                    <p>2. Tap <strong>START</strong> in the bot chat to confirm the connection.</p>
+                    <p className="mt-1 text-zinc-500">Waiting for confirmation…</p>
+                  </div>
+                )}
 
                 <button
                   onClick={() => handleConnect(integration.id)}

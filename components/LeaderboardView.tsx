@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Trophy,
@@ -221,6 +222,8 @@ export function LeaderboardView() {
 
   const [showFormula, setShowFormula] = useState(false);
 
+  const { address } = useAuth();
+
   const fetchDevRel = useCallback(async (type: 'human' | 'agent') => {
     setLoading(true);
     try {
@@ -253,6 +256,13 @@ export function LeaderboardView() {
     const diff = a[communitySortKey] - b[communitySortKey];
     return communitySortDir === 'desc' ? -diff : diff;
   });
+
+  const myDevRelRank = address
+    ? sorted.findIndex((e) => e.devrelId.toLowerCase() === address.toLowerCase()) + 1
+    : 0;
+  const myCommunityRank = address
+    ? communitySorted.findIndex((e) => e.address?.toLowerCase() === address.toLowerCase()) + 1
+    : 0;
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
@@ -429,11 +439,12 @@ export function LeaderboardView() {
                   <div className="rounded-xl border border-white/5 overflow-hidden divide-y divide-white/5">
                     {sorted.map((entry, i) => {
                       const rank = i + 1; const isTop3 = rank <= 3;
+                      const isYou = !!address && entry.devrelId.toLowerCase() === address.toLowerCase();
                       const scoreBar = (entry.overallScore / maxScore) * 100;
                       return (
                         <motion.div key={entry.devrelId} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.025, duration: 0.2 }}
-                          className={`relative grid grid-cols-[2.5rem_1fr_repeat(6,_minmax(5rem,_7rem))] items-center gap-x-2 px-4 py-3.5 hover:bg-white/[0.025] transition-colors ${isTop3 ? RANK_BG[rank - 1] : ''}`}>
+                          className={`relative grid grid-cols-[2.5rem_1fr_repeat(6,_minmax(5rem,_7rem))] items-center gap-x-2 px-4 py-3.5 hover:bg-white/[0.025] transition-colors ${isTop3 ? RANK_BG[rank - 1] : ''} ${isYou ? 'ring-1 ring-inset ring-teal-500/40 bg-teal-500/5' : ''}`}>
                           {!isTop3 && <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-transparent pointer-events-none opacity-60" style={{ width: `${scoreBar}%` }} />}
                           <div className="flex items-center justify-center relative z-10"><RankBadge rank={rank} /></div>
                           <div className="flex items-center gap-3 min-w-0 relative z-10">
@@ -458,8 +469,12 @@ export function LeaderboardView() {
                         </motion.div>
                       );
                     })}
-                  </div>
-                </div>
+                  </div>                  {address && myDevRelRank > 0 && (
+                    <div className="mt-2 flex items-center justify-between px-4 py-2.5 rounded-xl border border-teal-500/30 bg-teal-500/5 text-sm">
+                      <span className="text-teal-400 font-medium">Your rank</span>
+                      <span className="font-mono font-semibold text-teal-300">#{myDevRelRank} · {sorted[myDevRelRank - 1]?.overallScore.toLocaleString()} pts</span>
+                    </div>
+                  )}                </div>
 
                 {/* Mobile list */}
                 <div className="md:hidden">
@@ -557,11 +572,12 @@ export function LeaderboardView() {
                   <div className="rounded-xl border border-white/5 overflow-hidden divide-y divide-white/5">
                     {communitySorted.map((entry, i) => {
                       const rank = i + 1; const isTop3 = rank <= 3;
+                      const isYou = !!address && entry.address?.toLowerCase() === address.toLowerCase();
                       const scoreBar = (entry.builderScore / maxBuilderScore) * 100;
                       return (
                         <motion.div key={entry.userId} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.025, duration: 0.2 }}
-                          className={`relative grid grid-cols-[2.5rem_1fr_repeat(6,_minmax(5rem,_7rem))] items-center gap-x-2 px-4 py-3.5 hover:bg-white/[0.025] transition-colors ${isTop3 ? RANK_BG[rank - 1] : ''}`}>
+                          className={`relative grid grid-cols-[2.5rem_1fr_repeat(6,_minmax(5rem,_7rem))] items-center gap-x-2 px-4 py-3.5 hover:bg-white/[0.025] transition-colors ${isTop3 ? RANK_BG[rank - 1] : ''} ${isYou ? 'ring-1 ring-inset ring-teal-500/40 bg-teal-500/5' : ''}`}>
                           {!isTop3 && <div className="absolute inset-0 bg-gradient-to-r from-teal-500/5 to-transparent pointer-events-none opacity-60" style={{ width: `${scoreBar}%` }} />}
                           <div className="flex items-center justify-center relative z-10"><RankBadge rank={rank} /></div>
                           <div className="flex items-center gap-3 min-w-0 relative z-10">
@@ -582,6 +598,12 @@ export function LeaderboardView() {
                       );
                     })}
                   </div>
+                  {address && myCommunityRank > 0 && (
+                    <div className="mt-2 flex items-center justify-between px-4 py-2.5 rounded-xl border border-teal-500/30 bg-teal-500/5 text-sm">
+                      <span className="text-teal-400 font-medium">Your rank</span>
+                      <span className="font-mono font-semibold text-teal-300">#{myCommunityRank} · {communitySorted[myCommunityRank - 1]?.builderScore.toLocaleString()} pts</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Mobile list */}

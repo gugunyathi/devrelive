@@ -666,6 +666,17 @@ export function RepairView() {
                                   <ExternalLink className="w-3.5 h-3.5" />
                                 </a>
                               )}
+                              {rec.commitUrl && (
+                                <a
+                                  href={`${rec.commitUrl}/files`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                                  title="View diff"
+                                >
+                                  <GitBranch className="w-3.5 h-3.5" />
+                                </a>
+                              )}
                               <button
                                 onClick={() => {
                                   setAppUrl(rec.appUrl || '');
