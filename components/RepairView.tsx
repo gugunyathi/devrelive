@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Wrench, Github, Globe, CheckCircle2, CircleDashed, ArrowRight,
   FileCode2, Terminal, Activity, Play, ExternalLink, FileText,
@@ -95,6 +95,7 @@ export function RepairView() {
   const [repairHistory, setRepairHistory] = useState<RepairHistoryRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showPaymentGate, setShowPaymentGate] = useState(false);
+  const formTopRef = useRef<HTMLDivElement>(null);
 
   // ── Check GitHub connection status on mount ──────────────────────────────
   useEffect(() => {
@@ -309,7 +310,7 @@ export function RepairView() {
           </div>
 
           {/* ── Input Form ─────────────────────────────────────────────── */}
-          <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-4 sm:p-6 space-y-4">
+          <div ref={formTopRef} className="bg-zinc-900/50 border border-white/5 rounded-2xl p-4 sm:p-6 space-y-4">
             <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">
               Step 2 — Enter URLs
             </h2>
@@ -665,6 +666,20 @@ export function RepairView() {
                                   <ExternalLink className="w-3.5 h-3.5" />
                                 </a>
                               )}
+                              <button
+                                onClick={() => {
+                                  setAppUrl(rec.appUrl || '');
+                                  setRepoUrl(rec.repoUrl || '');
+                                  setReport(null);
+                                  setStreamSteps([]);
+                                  setErrorMsg(null);
+                                  formTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }}
+                                className="p-1.5 rounded-lg text-zinc-600 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                                title="Re-run repair"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                              </button>
                               <button
                                 onClick={() => handleDeleteHistory(rec._id)}
                                 className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"

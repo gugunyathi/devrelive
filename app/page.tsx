@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { sdk } from '@farcaster/miniapp-sdk';
-import { CallPad, Channel } from '@/components/CallPad';
+import { CallPad, Channel, CHANNELS } from '@/components/CallPad';
 import { ActiveCall } from '@/components/ActiveCall';
 import { Integrations } from '@/components/Integrations';
 import { DiscordView } from '@/components/DiscordView';
@@ -23,9 +23,21 @@ export default function Home() {
   const [connectedIntegrations, setConnectedIntegrations] = useState<Record<string, boolean>>({});
   const { address, signIn, signOut, isLoading } = useAuth();
   const [isJoinedViaLink, setIsJoinedViaLink] = useState(false);
+  const [farcasterUser, setFarcasterUser] = useState<{ fid?: number; displayName?: string; pfpUrl?: string } | null>(null);
 
   useEffect(() => {
     sdk.actions.ready();
+    // Read Farcaster context (FID, display name, pfp) if running inside the mini app
+    sdk.context.then((ctx: any) => {
+      if (ctx?.user) {
+        setFarcasterUser({ fid: ctx.user.fid, displayName: ctx.user.displayName, pfpUrl: ctx.user.pfpUrl });
+      }
+    }).catch(() => {});
+    // Prompt the user to add this mini app to their Farcaster home screen after 30 s
+    const addMiniappTimer = setTimeout(() => {
+      sdk.actions.addMiniApp().catch(() => {});
+    }, 30000);
+    return () => clearTimeout(addMiniappTimer);
   }, []);
 
   // Handle ?tab=repair deep link (used by GitHub OAuth callback redirect)
@@ -45,7 +57,6 @@ export default function Home() {
       const urlParams = new URLSearchParams(window.location.search);
       const callId = urlParams.get('call');
       if (callId && !activeChannel) {
-        const { CHANNELS } = require('@/components/CallPad');
         const channel = CHANNELS.find((c: Channel) => c.id === callId) || {
           id: callId,
           name: 'Shared Call',

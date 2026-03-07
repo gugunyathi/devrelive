@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import CallHistory from '@/models/CallHistory';
 import User from '@/models/User';
+import DevRelStats from '@/models/DevRelStats';
 
 // POST /api/calls — save a completed call and update user stats
 export async function POST(req: Request) {
@@ -61,6 +62,32 @@ export async function POST(req: Request) {
           $set: { lastSeenAt: new Date() },
         }
       ).catch((e: Error) => console.error('Failed to update user stats:', e));
+
+      // Wire call completion to the leaderboard
+      DevRelStats.findOneAndUpdate(
+        { devrelId: hostAddress.toLowerCase() },
+        {
+          $inc: { liveCalls: 1 },
+          $set: {
+            displayName: `${hostAddress.slice(0, 6)}…${hostAddress.slice(-4)}`,
+            type: 'human',
+            isActive: true,
+          },
+        },
+        { upsert: true, new: true }
+      ).then(doc => {
+        if (doc) {
+          const newScore =
+            (doc.issuesResolved ?? 0) * 10 +
+            (doc.commentsEngaged ?? 0) * 2 +
+            (doc.liveCalls ?? 0) * 5 +
+            (doc.githubPushes ?? 0) * 8;
+          DevRelStats.updateOne(
+            { devrelId: hostAddress.toLowerCase() },
+            { $set: { overallScore: newScore } }
+          ).catch(() => {});
+        }
+      }).catch((e: Error) => console.error('Failed to update DevRelStats:', e));
     }
 
     return NextResponse.json({ call }, { status: 201 });

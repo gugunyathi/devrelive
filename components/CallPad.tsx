@@ -14,12 +14,30 @@ export interface Channel {
 }
 
 export const CHANNELS: Channel[] = [
-  { id: 'base-chain', name: 'Base Chain', icon: <Hash className="w-5 h-5" />, number: '0x1' },
-  { id: 'base-nodes', name: 'Base Nodes', icon: <Server className="w-5 h-5" />, number: '0x2' },
-  { id: 'base-account', name: 'Base Account', icon: <User className="w-5 h-5" />, number: '0x3' },
-  { id: 'mini-apps', name: 'Mini Apps', icon: <Box className="w-5 h-5" />, number: '0x4' },
-  { id: 'ai-agents', name: 'AI Agents', icon: <Bot className="w-5 h-5" />, number: '0x5' },
-  { id: 'dev-forum', name: 'Developer Forum', icon: <MessageSquare className="w-5 h-5" />, number: '0x6' },
+  {
+    id: 'base-chain', name: 'Base Chain', icon: <Hash className="w-5 h-5" />, number: '0x1',
+    context: 'You are a specialist DevRel engineer for Base Chain, an Ethereum L2 built by Coinbase. Help developers with Base transactions, gas fees, bridging assets, smart contract deployment on Base, Base-specific RPC issues, Basescan verification, and the Base ecosystem. Be concise, accurate, and include code snippets where helpful.',
+  },
+  {
+    id: 'base-nodes', name: 'Base Nodes', icon: <Server className="w-5 h-5" />, number: '0x2',
+    context: 'You are a specialist DevRel engineer for Base node operations. Help developers with running Base full nodes and archive nodes, Reth and Geth clients, syncing issues, snapshot downloads from docs.base.org, RPC configuration, peer connectivity, and node infrastructure. Reference the official Base node docs where appropriate.',
+  },
+  {
+    id: 'base-account', name: 'Base Account', icon: <User className="w-5 h-5" />, number: '0x3',
+    context: 'You are a specialist DevRel engineer for Base Account (formerly Coinbase Smart Wallet). Help developers with account abstraction (ERC-4337), smart wallet creation, paymasters for gas sponsorship, the Base Account SDK, passkey signers, and integrating @base-org/account into their dApps. Be precise and include SDK examples.',
+  },
+  {
+    id: 'mini-apps', name: 'Mini Apps', icon: <Box className="w-5 h-5" />, number: '0x4',
+    context: 'You are a specialist DevRel engineer for Farcaster Mini Apps (formerly Frames v2). Help developers with farcaster.json manifests, account association signing, the base:app_id meta tag, the @farcaster/miniapp-sdk, mini app embeds, iconUrl specs (1024x1024 PNG, no alpha), registering on base.dev, and debugging manifest issues on base.dev/preview.',
+  },
+  {
+    id: 'ai-agents', name: 'AI Agents', icon: <Bot className="w-5 h-5" />, number: '0x5',
+    context: 'You are a specialist DevRel engineer for AI agents on Base. Help developers with building onchain AI agents using CDP AgentKit, LangChain, LangGraph, and MCP servers. Assist with autonomous agent architecture, wallet actions, gas management for agents, and deploying agents that interact with Base smart contracts.',
+  },
+  {
+    id: 'dev-forum', name: 'Developer Forum', icon: <MessageSquare className="w-5 h-5" />, number: '0x6',
+    context: 'You are a helpful DevRel assistant for Base developers. Answer questions about Base L2, Coinbase Developer Platform (CDP), smart contracts, OnchainKit, account abstraction, mini apps, AI agents, and the broader Base ecosystem. Reference official docs at docs.base.org and base.dev. Escalate complex issues to a human DevRel if needed.',
+  },
 ];
 
 interface CallPadProps {

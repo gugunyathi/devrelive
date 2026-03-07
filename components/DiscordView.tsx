@@ -136,6 +136,9 @@ export function DiscordView({ onStartCall, onNavigateToRepair, isTelegramConnect
   const [chatInput, setChatInput] = useState('');
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
+  // Forum filter
+  const [showUnresolvedOnly, setShowUnresolvedOnly] = useState(false);
+
   // Auto-scroll chat to bottom when channel changes or messages update
   useEffect(() => {
     if (CHAT_CHANNELS.has(activeChannel) && chatScrollRef.current) {
@@ -692,6 +695,16 @@ export function DiscordView({ onStartCall, onNavigateToRepair, isTelegramConnect
 
             {/* Tags Row */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar shrink-0">
+              <button
+                onClick={() => setShowUnresolvedOnly(v => !v)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium border whitespace-nowrap transition-colors ${
+                  showUnresolvedOnly
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-[#2B2D31] hover:bg-[#3F4147] text-[#DBDEE1] border-[#1E1F22]/50'
+                }`}
+              >
+                Unresolved
+              </button>
               <button className="flex items-center gap-1 px-3 py-1.5 bg-[#2B2D31] hover:bg-[#3F4147] rounded-lg text-sm font-medium text-[#DBDEE1] border border-[#1E1F22]/50 whitespace-nowrap">
                 <span className="text-[#949BA4]">↑↓</span> Sort & View <ChevronDown className="w-4 h-4 ml-1" />
               </button>
@@ -708,6 +721,7 @@ export function DiscordView({ onStartCall, onNavigateToRepair, isTelegramConnect
               {posts
                 .filter(p => p.channelId === activeChannel)
                 .filter(p => (p as any).source !== 'telegram' || isTelegramConnected)
+                .filter(p => !showUnresolvedOnly || !p.resolved)
                 .map(post => (
                   <div
                     key={post.id}

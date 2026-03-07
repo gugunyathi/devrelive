@@ -20,15 +20,17 @@ const MOCK_SCHEDULED: ScheduledCall[] = [
   { scheduledCallId: 'mock-s2', title: 'Smart Contract Debugging', scheduledAt: new Date(2026, 2, 18, 14, 30).toISOString(), durationMinutes: 30, devrel: 'Bob', status: 'pending' },
 ];
 
-const NOW = new Date();
-const CUR_MONTH = NOW.getMonth();
-const CUR_YEAR = NOW.getFullYear();
-const MONTH_LABEL = NOW.toLocaleString('default', { month: 'long', year: 'numeric' });
-const DAYS_IN_MONTH = new Date(CUR_YEAR, CUR_MONTH + 1, 0).getDate();
-const TODAY = NOW.getDate();
-
 export function CalendarView() {
   const { address, userId } = useAuth();
+
+  // Computed fresh on each mount so the calendar always shows the real current month
+  const NOW = new Date();
+  const CUR_MONTH = NOW.getMonth();
+  const CUR_YEAR = NOW.getFullYear();
+  const MONTH_LABEL = NOW.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const DAYS_IN_MONTH = new Date(CUR_YEAR, CUR_MONTH + 1, 0).getDate();
+  const TODAY = NOW.getDate();
+
   const [selectedDate, setSelectedDate] = useState<number>(TODAY);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduledCalls, setScheduledCalls] = useState<ScheduledCall[]>(MOCK_SCHEDULED);

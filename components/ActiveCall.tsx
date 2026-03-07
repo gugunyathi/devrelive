@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { PhoneOff, MonitorUp, MonitorOff, Mic, MicOff, Video, VideoOff, Send, Link, Users, LogOut, Clock } from 'lucide-react';
+import { PhoneOff, MonitorUp, MonitorOff, Mic, MicOff, Video, VideoOff, Send, Users, LogOut, Clock, Github, RefreshCw } from 'lucide-react';
 import { useGeminiLive } from '@/hooks/use-gemini-live';
 import { Channel } from './CallPad';
 
@@ -85,8 +85,20 @@ export function ActiveCall({ channel, onEndCall, isJoinedViaLink, maxDurationSec
     { id: 'ai', name: 'DevRel Assistant', role: 'AI', avatar: 'AI' }
   ]);
   const [isRequestingHuman, setIsRequestingHuman] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
   const hasHumanDevRel = participants.some(p => p.role === 'Human');
+
+  // ── Code review state ─────────────────────────────────────────
+  const [sideTab, setSideTab] = useState<'transcript' | 'code'>('transcript');
+  const [ghConnected, setGhConnected] = useState<{ ok: boolean; username?: string } | null>(null);
+  const [reviewRepoUrl, setReviewRepoUrl] = useState('');
+  const [repoTree, setRepoTree] = useState<{ path: string; size?: number }[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [reviewText, setReviewText] = useState('');
+  const [reviewQuestion, setReviewQuestion] = useState('');
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [codeStatus, setCodeStatus] = useState<string | null>(null);
+  const reviewScrollRef = useRef<HTMLDivElement>(null);
 
   // ── Countdown timer ──────────────────────────────────────────
   const [secsLeft, setSecsLeft] = useState<number | null>(maxDurationSecs ?? null);
@@ -178,18 +190,112 @@ export function ActiveCall({ channel, onEndCall, isJoinedViaLink, maxDurationSec
     }, 3000);
   };
 
-  const shareLink = () => {
-    navigator.clipboard.writeText(window.location.href + '?call=' + channel.id);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-    
-    // Simulate a team member joining after sharing link
-    setTimeout(() => {
-      setParticipants(prev => {
-        if (prev.find(p => p.id === 'team-1')) return prev;
-        return [...prev, { id: 'team-1', name: 'Jamie (Frontend)', role: 'Team', avatar: 'J' }];
+  // ── Code review helpers ───────────────────────────────────────
+  const checkGhStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/github/status');
+      const data = await res.json();
+      setGhConnected({ ok: data.connected, username: data.username });
+    } catch {
+      setGhConnected({ ok: false });
+    }
+  }, []);
+
+  const loadRepoFiles = async () => {
+    if (!reviewRepoUrl.trim()) return;
+    setFilesLoading(true);
+    setRepoTree([]);
+    setSelectedFiles(new Set());
+    try {
+      const res = await fetch(`/api/calls/review?repoUrl=${encodeURIComponent(reviewRepoUrl.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRepoTree(data.files ?? []);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setCodeStatus(err.error ?? 'Failed to load files');
+      }
+    } catch {
+      setCodeStatus('Network error loading files');
+    } finally {
+      setFilesLoading(false);
+    }
+  };
+
+  const sendCodeToGemini = async () => {
+    if (!reviewRepoUrl.trim() || !isConnected) return;
+    setCodeStatus('Fetching code…');
+    try {
+      const res = await fetch('/api/calls/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoUrl: reviewRepoUrl.trim(),
+          files: selectedFiles.size > 0 ? [...selectedFiles] : undefined,
+          mode: 'context',
+        }),
       });
-    }, 5000);
+      if (res.ok) {
+        const { content, fileCount } = await res.json();
+        sendTextMessage(
+          `[Code Review Request]\nRepository: ${reviewRepoUrl.trim()}\n\n${content}\n\nPlease review this code and help with any questions.`
+        );
+        setCodeStatus(`✓ ${fileCount} file(s) shared with Gemini — check transcript`);
+        setSideTab('transcript');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setCodeStatus(err.error ?? 'Failed to fetch code');
+      }
+    } catch {
+      setCodeStatus('Network error');
+    }
+  };
+
+  const runClaudeReview = async () => {
+    if (!reviewRepoUrl.trim()) return;
+    setIsReviewing(true);
+    setReviewText('');
+    setCodeStatus(null);
+    try {
+      const res = await fetch('/api/calls/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoUrl: reviewRepoUrl.trim(),
+          files: selectedFiles.size > 0 ? [...selectedFiles] : undefined,
+          question: reviewQuestion.trim() || undefined,
+          mode: 'review',
+        }),
+      });
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({}));
+        setCodeStatus(err.error ?? 'Review failed');
+        setIsReviewing(false);
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value).split('\n').filter(l => l.startsWith('data: '));
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.text) setReviewText(prev => {
+              const next = prev + data.text;
+              setTimeout(() => reviewScrollRef.current?.scrollTo({ top: reviewScrollRef.current.scrollHeight }), 10);
+              return next;
+            });
+            if (data.error) setCodeStatus(data.error);
+          } catch { /* ignore malformed */ }
+        }
+      }
+    } catch {
+      setCodeStatus('Network error during review');
+    } finally {
+      setIsReviewing(false);
+    }
   };
 
   const stopScreenShare = () => {
@@ -357,13 +463,6 @@ export function ActiveCall({ channel, onEndCall, isJoinedViaLink, maxDurationSec
             </div>
           )}
           <button
-            onClick={shareLink}
-            className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-          >
-            <Link className="w-4 h-4" />
-            {copiedLink ? 'Copied!' : 'Share Link'}
-          </button>
-          <button
             onClick={requestHumanDevRel}
             disabled={isRequestingHuman || participants.some(p => p.role === 'Human')}
             className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
@@ -451,52 +550,227 @@ export function ActiveCall({ channel, onEndCall, isJoinedViaLink, maxDurationSec
           </div>
         </div>
 
-        {/* Transcript Sidebar */}
+        {/* Transcript / Code Review Sidebar */}
         <div className="w-full lg:w-80 bg-zinc-900 rounded-2xl border border-white/10 flex flex-col overflow-hidden shrink-0 h-64 lg:h-auto">
-          <div className="p-4 border-b border-white/10 bg-zinc-900/50">
-            <h3 className="font-medium text-white">Live Transcript</h3>
+
+          {/* Tab bar */}
+          <div className="flex border-b border-white/10 shrink-0">
+            <button
+              onClick={() => setSideTab('transcript')}
+              className={`flex-1 py-3 text-xs font-semibold uppercase tracking-wide transition-colors ${
+                sideTab === 'transcript'
+                  ? 'text-white border-b-2 border-indigo-400 bg-transparent'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              Transcript
+            </button>
+            <button
+              onClick={() => {
+                setSideTab('code');
+                if (!ghConnected) checkGhStatus();
+              }}
+              className={`flex-1 py-3 text-xs font-semibold uppercase tracking-wide flex items-center justify-center gap-1.5 transition-colors ${
+                sideTab === 'code'
+                  ? 'text-white border-b-2 border-indigo-400 bg-transparent'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              <Github className="w-3.5 h-3.5" />
+              Code Review
+            </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {transcript.length === 0 ? (
-              <div className="text-center text-zinc-500 text-sm mt-10">
-                Waiting for conversation to start...
-              </div>
-            ) : (
-              transcript.map((msg, idx) => (
-                <div key={idx} className={`flex flex-col ${msg.role === 'ai' ? 'items-start' : 'items-end'}`}>
-                  <div className={`max-w-[85%] rounded-xl p-3 text-sm ${
-                    msg.role === 'ai' 
-                      ? 'bg-indigo-500/20 text-indigo-100 border border-indigo-500/30' 
-                      : 'bg-zinc-800 text-zinc-300 border border-white/10'
-                  }`}>
-                    {msg.text}
+
+          {/* ── Transcript tab ─────────────────────────────────────── */}
+          {sideTab === 'transcript' && (
+            <>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {transcript.length === 0 ? (
+                  <div className="text-center text-zinc-500 text-sm mt-10">
+                    Waiting for conversation to start...
                   </div>
+                ) : (
+                  transcript.map((msg, idx) => (
+                    <div key={idx} className={`flex flex-col ${msg.role === 'ai' ? 'items-start' : 'items-end'}`}>
+                      <div className={`max-w-[85%] rounded-xl p-3 text-sm ${
+                        msg.role === 'ai'
+                          ? 'bg-indigo-500/20 text-indigo-100 border border-indigo-500/30'
+                          : 'bg-zinc-800 text-zinc-300 border border-white/10'
+                      }`}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={transcriptEndRef} />
+              </div>
+
+              {/* Chat Input */}
+              <div className="p-4 border-t border-white/10 bg-zinc-900/50 shrink-0">
+                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Send a link or message..."
+                    disabled={!isConnected}
+                    className="flex-1 bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!isConnected || !chatInput.trim()}
+                    className="w-9 h-9 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white flex items-center justify-center transition-colors shrink-0"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </form>
+              </div>
+            </>
+          )}
+
+          {/* ── Code Review tab ────────────────────────────────────── */}
+          {sideTab === 'code' && (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {ghConnected === null ? (
+                /* Loading */
+                <div className="flex items-center justify-center flex-1 gap-2 text-zinc-500 text-sm">
+                  <RefreshCw className="w-4 h-4 animate-spin" /> Checking GitHub…
                 </div>
-              ))
-            )}
-            <div ref={transcriptEndRef} />
-          </div>
-          
-          {/* Chat Input */}
-          <div className="p-4 border-t border-white/10 bg-zinc-900/50">
-            <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Send a link or message..."
-                disabled={!isConnected}
-                className="flex-1 bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
-              />
-              <button
-                type="submit"
-                disabled={!isConnected || !chatInput.trim()}
-                className="w-9 h-9 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white flex items-center justify-center transition-colors shrink-0"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
+              ) : !ghConnected.ok ? (
+                /* Not connected */
+                <div className="p-4 flex flex-col gap-4">
+                  <p className="text-sm text-zinc-400">
+                    Connect your GitHub account so Gemini and Claude can read your code during this call.
+                  </p>
+                  <a
+                    href="/api/auth/github?redirect=/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded-xl transition-colors border border-white/10"
+                  >
+                    <Github className="w-4 h-4" />
+                    Connect GitHub (new tab)
+                  </a>
+                  <button
+                    onClick={checkGhStatus}
+                    className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors flex items-center justify-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Already connected? Refresh
+                  </button>
+                </div>
+              ) : (
+                /* Connected */
+                <div className="flex flex-col flex-1 overflow-hidden">
+
+                  {/* Connected badge */}
+                  <div className="px-4 py-2 flex items-center gap-2 border-b border-white/5 shrink-0">
+                    <Github className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-xs text-emerald-400 font-medium">@{ghConnected.username}</span>
+                  </div>
+
+                  {/* Repo URL input */}
+                  <div className="px-3 pt-3 pb-2 flex gap-2 shrink-0">
+                    <input
+                      type="url"
+                      value={reviewRepoUrl}
+                      onChange={(e) => { setReviewRepoUrl(e.target.value); setRepoTree([]); setSelectedFiles(new Set()); setCodeStatus(null); }}
+                      placeholder="https://github.com/user/repo"
+                      className="flex-1 min-w-0 bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      onClick={loadRepoFiles}
+                      disabled={!reviewRepoUrl.trim() || filesLoading}
+                      className="px-3 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white text-xs font-medium rounded-lg transition-colors shrink-0 flex items-center gap-1"
+                    >
+                      {filesLoading
+                        ? <RefreshCw className="w-3 h-3 animate-spin" />
+                        : 'Load'}
+                    </button>
+                  </div>
+
+                  {/* File tree */}
+                  {repoTree.length > 0 && (
+                    <div className="px-3 pb-2 shrink-0">
+                      <p className="text-[10px] text-zinc-500 mb-1 uppercase tracking-wide">
+                        {selectedFiles.size > 0 ? `${selectedFiles.size} selected` : 'Select files (or leave empty for auto)'} 
+                      </p>
+                      <div className="max-h-36 overflow-y-auto space-y-0.5 pr-1">
+                        {repoTree.map(file => (
+                          <label key={file.path} className="flex items-center gap-2 py-0.5 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={selectedFiles.has(file.path)}
+                              onChange={(e) => {
+                                setSelectedFiles(prev => {
+                                  const next = new Set(prev);
+                                  if (e.target.checked) next.add(file.path);
+                                  else next.delete(file.path);
+                                  return next;
+                                });
+                              }}
+                              className="rounded accent-indigo-500 shrink-0"
+                            />
+                            <span className="text-[11px] text-zinc-400 group-hover:text-zinc-200 truncate">{file.path}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Question input */}
+                  <div className="px-3 pb-2 shrink-0">
+                    <input
+                      type="text"
+                      value={reviewQuestion}
+                      onChange={(e) => setReviewQuestion(e.target.value)}
+                      placeholder="Optional: specific question for Claude…"
+                      className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/50"
+                    />
+                  </div>
+
+                  {/* Status message */}
+                  {codeStatus && (
+                    <p className="px-3 pb-2 text-xs text-zinc-400 shrink-0">{codeStatus}</p>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="px-3 pb-3 flex flex-col gap-2 shrink-0">
+                    <button
+                      onClick={sendCodeToGemini}
+                      disabled={!reviewRepoUrl.trim() || !isConnected}
+                      className="w-full py-2.5 bg-indigo-500/20 hover:bg-indigo-500/30 disabled:opacity-40 text-indigo-300 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      {selectedFiles.size > 0 ? `Share ${selectedFiles.size} file(s) with Gemini` : 'Share repo with Gemini'}
+                    </button>
+                    <button
+                      onClick={runClaudeReview}
+                      disabled={!reviewRepoUrl.trim() || isReviewing}
+                      className="w-full py-2.5 bg-amber-500/20 hover:bg-amber-500/30 disabled:opacity-40 text-amber-300 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                    >
+                      {isReviewing
+                        ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Reviewing…</>
+                        : 'Claude Sonnet Deep Review'}
+                    </button>
+                  </div>
+
+                  {/* Claude review output */}
+                  {reviewText && (
+                    <div
+                      ref={reviewScrollRef}
+                      className="flex-1 overflow-y-auto px-3 pb-3 min-h-0"
+                    >
+                      <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+                        <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wide mb-2">Claude Review</p>
+                        <pre className="text-xs text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">{reviewText}</pre>
+                        {isReviewing && <span className="inline-block w-1.5 h-3.5 bg-amber-400 animate-pulse ml-1 align-middle" />}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

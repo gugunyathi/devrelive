@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { User, Plug, Shield, LogIn, LogOut, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, Plug, Shield, LogIn, LogOut, ChevronRight, Key, Check, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SignInWithBaseButton } from '@base-org/account-ui/react';
 
@@ -41,6 +41,22 @@ const SETTINGS_TILES = [
 
 export function SettingsView({ onNavigate }: SettingsViewProps) {
   const { address, signIn, signOut } = useAuth();
+
+  const ENV_CODE = process.env.NEXT_PUBLIC_BUILDER_CODE ?? '';
+  const [codeInput, setCodeInput] = useState(ENV_CODE);
+  const [savedCode, setSavedCode] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('devrelive_builder_code') ?? ENV_CODE;
+    return ENV_CODE;
+  });
+  const [codeSaved, setCodeSaved] = useState(false);
+
+  const handleSaveCode = () => {
+    const trimmed = codeInput.trim();
+    localStorage.setItem('devrelive_builder_code', trimmed);
+    setSavedCode(trimmed);
+    setCodeSaved(true);
+    setTimeout(() => setCodeSaved(false), 2000);
+  };
 
   return (
     <div className="h-full flex flex-col bg-zinc-950 text-white overflow-y-auto">
@@ -82,6 +98,48 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Builder Code section */}
+      <div className="px-6 py-5 border-b border-white/5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+            <Key className="w-4 h-4 text-violet-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">Builder Code</p>
+            <p className="text-xs text-zinc-500">ERC-8021 attribution code for onchain transaction tracking</p>
+          </div>
+          <a
+            href="https://base.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors"
+          >
+            base.dev <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+        {savedCode && (
+          <p className="text-xs text-zinc-500 mb-2 font-mono">
+            Active: <span className="text-violet-400">{savedCode}</span>
+          </p>
+        )}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={codeInput}
+            onChange={(e) => setCodeInput(e.target.value)}
+            placeholder="Enter your builder code…"
+            className="flex-1 min-w-0 bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+          />
+          <button
+            onClick={handleSaveCode}
+            disabled={!codeInput.trim()}
+            className="px-4 py-2 rounded-xl bg-violet-500 hover:bg-violet-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white text-sm font-medium transition-colors flex items-center gap-1.5 shrink-0"
+          >
+            {codeSaved ? <><Check className="w-4 h-4" /> Saved</> : 'Save'}
+          </button>
+        </div>
       </div>
 
       {/* Navigation tiles */}
